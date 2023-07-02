@@ -24,8 +24,7 @@ instructions = [
         { "type": ["rr", "16b"], "format": lambda args: [0b00000001 | (args[0] << 4), args[1] & 0xff, args[1] >> 8] },
         { "type": ["(nn)", "SP"], "format": lambda args: [0b00001000, args[0] & 0xff, args[0] >> 8] },
         { "type": ["SP", "HL"], "format": lambda args: [0b11111001] },
-
-        # TODO: HL,(SP+)8b (f8xx)
+        { "type": ["HL", "8b"], "format": lambda args: [0b11111000, args[1]] },
     ]},
     { "opcode": "PUSH", "params": [
         { "type": ["rr"], "format": lambda args: [0b11000101 | (args[0] << 4)] },
@@ -37,9 +36,9 @@ instructions = [
         { "type": ["r"], "format": lambda args: [0b10000000 | (args[0])] },
         { "type": ["(HL)"], "format": lambda args: [0b10000110] },
         { "type": ["8b"], "format": lambda args: [0b11000110, args[0]] },
+        { "type": ["SP", "8b"], "format": lambda args: [0b11101000, args[1]] },
 
         # TODO: HL,rr (x9 ?)
-        #       SP,8b (e8xx)
     ]},
     { "opcode": "ADC", "params": [
         { "type": ["r"], "format": lambda args: [0b10001000 | args[0]] },
@@ -135,10 +134,10 @@ instructions = [
     ]},
     { "opcode": "HALT", "params": [
         { "type": [], "format": lambda args: [0b01110110] },
-    ]}
+    ]},
     { "opcode": "STOP", "params": [
         { "type": [], "format": lambda args: [0b00010000, 0b00000000] },
-    ]}
+    ]},
     { "opcode": "RLCA", "params": [
         { "type": [], "format": lambda args: [0b00000111] },
     ]},
@@ -172,11 +171,23 @@ instructions = [
         { "type": ["r"], "format": lambda args: [0b11001011, 0b00011000 | args[0]] },
         { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00011110] },
     ]},
+    { "opcode": "SLA", "params": [
+        { "type": ["r"], "format": lambda args: [0b11001011, 0b00100000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00100110] },
+    ]},
+    { "opcode": "SWAP", "params": [
+        { "type": ["r"], "format": lambda args: [0b11001011, 0b00110000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00110110] },
+    ]},
+    { "opcode": "SRA", "params": [
+        { "type": ["r"], "format": lambda args: [0b11001011, 0b00101000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00101110] },
+    ]},
+    { "opcode": "SRL", "params": [
+        { "type": ["r"], "format": lambda args: [0b11001011, 0b00111000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00111110] },
+    ]},
     # TODO:
-    #   sla :(0xcb 0b00100xxx)
-    #   swap :(0xcb 0b00110xxx)
-    #   sra :(0xcb 0b00101xxx)
-    #   srl :(0xcb 0b00111xxx)
     #   set :(0xcb ?)
     #   res :(0xcb ?)
 
