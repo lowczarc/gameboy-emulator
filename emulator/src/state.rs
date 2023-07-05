@@ -2,6 +2,29 @@ use crate::consts::{BOOT_ROM_FILE, PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
 use std::fs::File;
 use std::io::Read;
 
+pub mod reg {
+    pub const B: u8 = 0;
+    pub const C: u8 = 1;
+    pub const D: u8 = 2;
+    pub const E: u8 = 3;
+    pub const H: u8 = 4;
+    pub const L: u8 = 5;
+    pub const A: u8 = 6;
+    pub const F: u8 = 7;
+
+    pub const BC: u8 = 0;
+    pub const DE: u8 = 1;
+    pub const HL: u8 = 2;
+    pub const AF: u8 = 3;
+}
+
+pub mod flag {
+    pub const NZ: u8 = 0;
+    pub const Z: u8 = 1;
+    pub const NC: u8 = 2;
+    pub const C: u8 = 3;
+}
+
 #[derive(Debug)]
 pub struct CPU {
     /* B, C, D, E, H, L, A, F registers.
@@ -21,6 +44,27 @@ impl CPU {
 
             pc: PROGRAM_START_ADDRESS,
             sp: STACK_START_ADDRESS,
+        }
+    }
+
+    pub fn r16(&self, r: u8) -> u16 {
+        return self.r[r as usize * 2] as u16 | ((self.r[(r as usize * 2) + 1] as u16) << 8);
+    }
+
+    pub fn w16(&mut self, r: u8, value: u16) {
+        self.r[r as usize * 2] = (value & 0xff) as u8;
+        self.r[(r as usize * 2) + 1] = (value >> 8) as u8;
+    }
+
+    pub fn check_flag(&self, flag: u8) -> bool {
+        let f = self.r[reg::F as usize];
+
+        match flag {
+            flag::NZ => f >> 7 == 1,
+            flag::Z => f >> 7 == 0,
+            flag::NC => f >> 4 == 1,
+            flag::C => f >> 4 == 0,
+            _ => unimplemented!(),
         }
     }
 }
@@ -73,7 +117,7 @@ impl Memory {
 
 pub struct GBState {
     pub cpu: CPU,
-    mem: Memory,
+    pub mem: Memory,
 }
 
 impl GBState {
@@ -86,10 +130,6 @@ impl GBState {
             cpu: CPU::new(),
             mem,
         }
-    }
-
-    pub fn r_mem(&self, addr: u16) -> Result<u8, MemError> {
-        self.mem.r(addr)
     }
 
     pub fn r_reg(&self, r_i: u8) -> Result<u8, MemError> {
