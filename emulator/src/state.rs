@@ -23,6 +23,11 @@ pub mod flag {
     pub const Z: u8 = 1;
     pub const NC: u8 = 2;
     pub const C: u8 = 3;
+
+    pub const CY: u8 = 1 << 4;
+    pub const H: u8 = 1 << 5;
+    pub const N: u8 = 1 << 6;
+    pub const ZF: u8 = 1 << 7;
 }
 
 #[derive(Debug)]
@@ -60,10 +65,10 @@ impl CPU {
         let f = self.r[reg::F as usize];
 
         match flag {
-            flag::NZ => f >> 7 == 1,
-            flag::Z => f >> 7 == 0,
-            flag::NC => f >> 4 == 1,
-            flag::C => f >> 4 == 0,
+            flag::NZ => f >> 7 == 0,
+            flag::Z => f >> 7 == 1,
+            flag::NC => f >> 4 == 0,
+            flag::C => f >> 4 == 1,
             _ => unimplemented!(),
         }
     }
@@ -101,7 +106,12 @@ impl Memory {
         if addr < 0x4000 {
             Ok(self.rom_00[addr as usize])
         } else {
-            Err(MemError::Unimplemented)
+            println!(
+                "Trying to read at address 0x{:04x} which is unimplemented",
+                addr
+            );
+            Ok(0)
+            // Err(MemError::Unimplemented)
         }
     }
 
@@ -110,7 +120,12 @@ impl Memory {
             self.rom_00[addr as usize] = value;
             Ok(())
         } else {
-            Err(MemError::Unimplemented)
+            println!(
+                "Trying to write at address 0x{:04x} which is unimplemented",
+                addr
+            );
+            Ok(())
+            // Err(MemError::Unimplemented)
         }
     }
 }
