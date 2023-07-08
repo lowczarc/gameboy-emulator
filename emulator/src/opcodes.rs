@@ -161,15 +161,15 @@ pub fn cpl(state: &mut GBState) {
     state.cpu.r[reg::A as usize] ^= 0xff;
 }
 
-pub fn addr(state: &mut GBState, n2: u8) -> Result<(), MemError> {
-    // ADD a register to A and store the result in A
-    let res = state.r_reg(n2)? as u16 + state.cpu.r[reg::A as usize] as u16;
+pub fn add(state: &mut GBState, x: u8) {
+    // ADD a number to A and store the result in A
+    let res = x as u16 + state.cpu.r[reg::A as usize] as u16;
 
     state.cpu.r[reg::A as usize] = res as u8;
 
     state.cpu.r[reg::F as usize] = 0;
 
-    if (state.r_reg(n2)? & 0xf) + (state.cpu.r[reg::A as usize] & 0xf) > 0xf {
+    if (x & 0xf) + (state.cpu.r[reg::A as usize] & 0xf) > 0xf {
         state.cpu.r[reg::F as usize] |= flag::H;
     }
 
@@ -180,20 +180,18 @@ pub fn addr(state: &mut GBState, n2: u8) -> Result<(), MemError> {
     if state.cpu.r[reg::A as usize] == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
     }
-
-    Ok(())
 }
 
-pub fn adcr(state: &mut GBState, n2: u8) -> Result<(), MemError> {
-    // ADD a register and the carry flag to A and store the result in A
+pub fn adc(state: &mut GBState, x: u8) {
+    // ADD a number and the carry flag to A and store the result in A
     let carry = (state.cpu.r[reg::F as usize] & flag::CY) >> 4;
-    let res = state.r_reg(n2)? as u16 + state.cpu.r[reg::A as usize] as u16 + carry as u16;
+    let res = x as u16 + state.cpu.r[reg::A as usize] as u16 + carry as u16;
 
     state.cpu.r[reg::A as usize] = res as u8;
 
     state.cpu.r[reg::F as usize] = 0;
 
-    if (state.r_reg(n2)? & 0xf) + ((state.cpu.r[reg::A as usize] & 0xf) + carry) > 0xf {
+    if (x & 0xf) + ((state.cpu.r[reg::A as usize] & 0xf) + carry) > 0xf {
         state.cpu.r[reg::F as usize] |= flag::H;
     }
 
@@ -204,111 +202,97 @@ pub fn adcr(state: &mut GBState, n2: u8) -> Result<(), MemError> {
     if state.cpu.r[reg::A as usize] == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
     }
-
-    Ok(())
 }
 
-pub fn subr(state: &mut GBState, n2: u8) -> Result<(), MemError> {
-    // SUB a register to A and store the result in A
+pub fn sub(state: &mut GBState, x: u8) {
+    // SUB a number to A and store the result in A
     state.cpu.r[reg::F as usize] = flag::N;
 
-    if (state.r_reg(n2)? & 0xf) > (state.cpu.r[reg::A as usize] & 0xf) {
+    if (x & 0xf) > (state.cpu.r[reg::A as usize] & 0xf) {
         state.cpu.r[reg::F as usize] |= flag::H;
     }
 
-    if state.r_reg(n2)? > state.cpu.r[reg::A as usize] {
+    if x > state.cpu.r[reg::A as usize] {
         state.cpu.r[reg::F as usize] |= flag::CY;
     }
 
-    state.cpu.r[reg::A as usize] = state.cpu.r[reg::A as usize] - state.r_reg(n2)?;
+    state.cpu.r[reg::A as usize] = state.cpu.r[reg::A as usize] - x;
 
     if state.cpu.r[reg::A as usize] == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
     }
-
-    Ok(())
 }
 
-pub fn sbcr(state: &mut GBState, n2: u8) -> Result<(), MemError> {
-    // SUB a register and the carry flag to A and store the result in A
+pub fn sbc(state: &mut GBState, x: u8) {
+    // SUB a number and the carry flag to A and store the result in A
     let carry = (state.cpu.r[reg::F as usize] & flag::CY) >> 4;
     state.cpu.r[reg::F as usize] = flag::N;
 
-    if (state.r_reg(n2)? & 0xf) > (state.cpu.r[reg::A as usize] & 0xf) - carry {
+    if (x & 0xf) > (state.cpu.r[reg::A as usize] & 0xf) - carry {
         state.cpu.r[reg::F as usize] |= flag::H;
     }
 
-    if state.r_reg(n2)? > state.cpu.r[reg::A as usize] - carry {
+    if x > state.cpu.r[reg::A as usize] - carry {
         state.cpu.r[reg::F as usize] |= flag::CY;
     }
 
-    state.cpu.r[reg::A as usize] = state.cpu.r[reg::A as usize] - state.r_reg(n2)? - carry;
+    state.cpu.r[reg::A as usize] = state.cpu.r[reg::A as usize] - x - carry;
 
     if state.cpu.r[reg::A as usize] == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
     }
-
-    Ok(())
 }
 
-pub fn andr(state: &mut GBState, n2: u8) -> Result<(), MemError> {
-    // AND a register to A and store the result in A
-    state.cpu.r[reg::A as usize] &= state.r_reg(n2)?;
+pub fn and(state: &mut GBState, x: u8) {
+    // AND a number to A and store the result in A
+    state.cpu.r[reg::A as usize] &= x;
 
     state.cpu.r[reg::F as usize] = flag::H;
 
     if state.cpu.r[reg::A as usize] == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
     }
-
-    Ok(())
 }
 
-pub fn xorr(state: &mut GBState, n2: u8) -> Result<(), MemError> {
-    // XOR a register to A and store the result in A
-    state.cpu.r[reg::A as usize] ^= state.r_reg(n2)?;
+pub fn xor(state: &mut GBState, x: u8) {
+    // XOR a number to A and store the result in A
+    state.cpu.r[reg::A as usize] ^= x;
 
     state.cpu.r[reg::F as usize] = 0;
 
     if state.cpu.r[reg::A as usize] == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
     }
-
-    Ok(())
 }
 
-pub fn orr(state: &mut GBState, n2: u8) -> Result<(), MemError> {
-    // OR a register to A and store the result in A
-    state.cpu.r[reg::A as usize] |= state.r_reg(n2)?;
+pub fn or(state: &mut GBState, x: u8) {
+    // OR a number to A and store the result in A
+    state.cpu.r[reg::A as usize] |= x;
 
     state.cpu.r[reg::F as usize] = 0;
 
     if state.cpu.r[reg::A as usize] == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
     }
-
-    Ok(())
 }
 
-pub fn cpr(state: &mut GBState, n2: u8) -> Result<(), MemError> {
-    // SUB a register to A and update the flags accordingly without updating A
+pub fn cp(state: &mut GBState, x: u8) {
+    // SUB a number to A and update the flags accordingly without updating A
     state.cpu.r[reg::F as usize] |= flag::N;
 
-    if state.r_reg(n2)? & 0xf > state.cpu.r[reg::A as usize] & 0xf {
+    if x & 0xf > state.cpu.r[reg::A as usize] & 0xf {
         state.cpu.r[reg::F as usize] |= flag::H;
     }
 
-    if state.r_reg(n2)? > state.cpu.r[reg::A as usize] {
+    if x > state.cpu.r[reg::A as usize] {
         state.cpu.r[reg::F as usize] |= flag::CY;
     }
 
-    let res = state.cpu.r[reg::A as usize] - state.r_reg(n2)?;
+    let res = state.cpu.r[reg::A as usize] - x;
 
     if res == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
     }
-
-    Ok(())
 }
 
 pub fn rlca(state: &mut GBState) {
@@ -388,20 +372,74 @@ pub fn op01(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
 }
 
 pub fn op10(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
+    // Dispatcher for the instructions starting with 0b10 (Arithmetic)
     match n1 {
-        0b000 => addr(state, n2),
-        0b001 => adcr(state, n2),
-        0b010 => subr(state, n2),
-        0b011 => sbcr(state, n2),
-        0b100 => andr(state, n2),
-        0b101 => xorr(state, n2),
-        0b110 => orr(state, n2),
-        0b111 => cpr(state, n2),
+        0b000 => Ok(add(state, state.r_reg(n2)?)),
+        0b001 => Ok(adc(state, state.r_reg(n2)?)),
+        0b010 => Ok(sub(state, state.r_reg(n2)?)),
+        0b011 => Ok(sbc(state, state.r_reg(n2)?)),
+        0b100 => Ok(and(state, state.r_reg(n2)?)),
+        0b101 => Ok(xor(state, state.r_reg(n2)?)),
+        0b110 => Ok(or(state, state.r_reg(n2)?)),
+        0b111 => Ok(cp(state, state.r_reg(n2)?)),
         _ => panic!(),
     }
 }
 
-pub fn op11(_state: &mut GBState, _n1: u8, _n2: u8) -> Result<(), MemError> {
-    // Need some more brain juice to understand how theses are categorized
-    todo!()
+pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
+    match n2 {
+        0b000 => match n1 {
+            0b100 => todo!(), // LD (n) A
+            0b101 => todo!(), // ADD SP 8b
+            0b110 => todo!(), // LD A (n)
+            0b111 => todo!(), // LD HL 8b
+            _ => todo!(),     // RET cc
+        },
+        0b001 => match n1 {
+            0b001 => todo!(), // RET
+            0b011 => todo!(), // RETI
+            0b101 => todo!(), // JP HL
+            0b111 => todo!(), // LD HL 8b
+            _ => todo!(),     // POP rr
+        },
+        0b010 => match n1 {
+            0b100 => todo!(), // LD (C) A
+            0b101 => todo!(), // LD (nn) A
+            0b110 => todo!(), // LD A (C)
+            0b111 => todo!(), // LD A (nn)
+            _ => todo!(),     // JP cc 16b
+        },
+        0b011 => match n1 {
+            0b000 => todo!(), // JP 16b
+            0b001 => todo!(), // Bitwise operations
+            0b010 | 0b011 | 0b100 | 0b101 => unimplemented!(),
+            0b110 => todo!(), // DI
+            0b111 => todo!(), // EI
+            _ => panic!(),
+        },
+        0b100 => todo!(), // CALL cc 16b
+        0b101 => match n1 {
+            0b001 => todo!(), // CALL 16b
+            0b011 | 0b101 | 0b111 => unimplemented!(),
+            _ => todo!(), // PUSH rr
+        },
+        0b110 => {
+            let p = state.mem.r(state.cpu.pc)?;
+            state.cpu.pc += 1;
+
+            match n1 {
+                0b000 => Ok(add(state, p)),
+                0b001 => Ok(adc(state, p)),
+                0b010 => Ok(sub(state, p)),
+                0b011 => Ok(sbc(state, p)),
+                0b100 => Ok(and(state, p)),
+                0b101 => Ok(xor(state, p)),
+                0b110 => Ok(or(state, p)),
+                0b111 => Ok(cp(state, p)),
+                _ => panic!(),
+            }
+        }
+        0b111 => todo!(), // RST
+        _ => panic!(),
+    }
 }
