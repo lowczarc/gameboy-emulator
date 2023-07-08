@@ -59,6 +59,9 @@ pub fn ldann(state: &mut GBState, nn: u16) -> Result<(), MemError> {
 pub fn push(state: &mut GBState, x: u16) -> Result<(), MemError> {
     state.cpu.sp -= 2;
 
+    if state.cpu.sp > 0xfffc || state.cpu.sp < 0xff80 {
+        panic!("Stack overflow on PUSH. SP: 0x{:04x}", state.cpu.sp);
+    }
     state.mem.w(state.cpu.sp, (x & 0xff) as u8)?;
 
     state.mem.w(state.cpu.sp + 1, (x >> 8) as u8)?;
@@ -67,6 +70,10 @@ pub fn push(state: &mut GBState, x: u16) -> Result<(), MemError> {
 }
 
 pub fn pop(state: &mut GBState) -> Result<u16, MemError> {
+    if state.cpu.sp > 0xfffc || state.cpu.sp < 0xff80 {
+        panic!("Stack overflow on POP. SP: 0x{:04x}", state.cpu.sp);
+    }
+
     let res = state.mem.r(state.cpu.sp)? as u16 | ((state.mem.r(state.cpu.sp + 1)? as u16) << 8);
 
     state.cpu.sp += 2;
@@ -144,6 +151,9 @@ pub fn callcc(state: &mut GBState, n1: u8) -> Result<(), MemError> {
 pub fn ret(state: &mut GBState) -> Result<(), MemError> {
     state.cpu.pc = pop(state)?;
 
+    if state.cpu.pc == 0 {
+        panic!("RET to start");
+    }
     Ok(())
 }
 
@@ -187,8 +197,7 @@ pub fn ld00a(state: &mut GBState, n1: u8) -> Result<(), MemError> {
 pub fn inc8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
     // Increment 8 bit register
     state.w_reg(n1, state.r_reg(n1)? + 1)?;
-    state.cpu.r[reg::F as usize] &= !flag::N;
-
+    state.cpu.r[reg::F as usize] &= !(flag::N | flag::ZF | flag::H);
     if state.r_reg(n1)? == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
     }
@@ -205,6 +214,7 @@ pub fn dec8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
     state.w_reg(n1, state.r_reg(n1)? - 1)?;
     state.cpu.r[reg::F as usize] |= flag::N;
 
+    state.cpu.r[reg::F as usize] &= !(flag::ZF | flag::H);
     if state.r_reg(n1)? == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
     }
@@ -214,6 +224,35 @@ pub fn dec8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
     }
 
     Ok(())
+}
+
+pub fn inc16(state: &mut GBState, rr: u8) {
+    // Increment 16 bit register
+    state.cpu.w16(rr, state.cpu.r16(rr) + 1);
+    state.cpu.r[reg::F as usize] &= !(flag::N | flag::ZF | flag::H);
+
+    if state.cpu.r16(rr) == 0 {
+        state.cpu.r[reg::F as usize] |= flag::ZF;
+    }
+
+    if state.cpu.r16(rr) & 0xff == 0x0 {
+        state.cpu.r[reg::F as usize] |= flag::H;
+    }
+}
+
+pub fn dec16(state: &mut GBState, rr: u8) {
+    // Decrement 16 bit register
+    state.cpu.w16(rr, state.cpu.r16(rr) - 1);
+    state.cpu.r[reg::F as usize] |= flag::N;
+
+    state.cpu.r[reg::F as usize] &= !(flag::ZF | flag::H);
+    if state.cpu.r16(rr) == 0 {
+        state.cpu.r[reg::F as usize] |= flag::ZF;
+    }
+
+    if state.cpu.r16(rr) & 0xff == 0xff {
+        state.cpu.r[reg::F as usize] |= flag::H;
+    }
 }
 
 pub fn ccf(state: &mut GBState) {
@@ -414,40 +453,56 @@ pub fn cp(state: &mut GBState, x: u8) {
     }
 }
 
-pub fn rlca(state: &mut GBState) {
-    // ROTATE LEFT the A register
+pub fn rlc(state: &mut GBState, r_i: u8) -> Result<(), MemError> {
+    // ROTATE LEFT the input register
+    let mut n = state.r_reg(r_i)?;
     state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
-    state.cpu.r[reg::F as usize] |= (state.cpu.r[reg::A as usize] >> 7) << 4;
-    state.cpu.r[reg::A as usize] <<= 1;
-    state.cpu.r[reg::A as usize] |= (state.cpu.r[reg::F as usize] & flag::CY) >> 4;
+    state.cpu.r[reg::F as usize] |= (n >> 7) << 4;
+    n <<= 1;
+    n |= (state.cpu.r[reg::F as usize] & flag::CY) >> 4;
+    state.w_reg(r_i, n)
 }
 
-pub fn rrca(state: &mut GBState) {
-    // ROTATE RIGHT the A register
+pub fn rrc(state: &mut GBState, r_i: u8) -> Result<(), MemError> {
+    // ROTATE RIGHT the input register
+    let mut n = state.r_reg(r_i)?;
     state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
-    state.cpu.r[reg::F as usize] |= (state.cpu.r[reg::A as usize] & 1) << 4;
-    state.cpu.r[reg::A as usize] >>= 1;
-    state.cpu.r[reg::A as usize] |= ((state.cpu.r[reg::F as usize] & flag::CY) >> 4) << 7;
+    state.cpu.r[reg::F as usize] |= (n & 1) << 4;
+    n >>= 1;
+    n |= ((state.cpu.r[reg::F as usize] & flag::CY) >> 4) << 7;
+    state.w_reg(r_i, n)
 }
 
-pub fn rla(state: &mut GBState) {
-    // ROTATE LEFT THROUGH CARRY the A register
+pub fn rl(state: &mut GBState, r_i: u8) -> Result<(), MemError> {
+    // ROTATE LEFT THROUGH CARRY the input register
+    let mut n = state.r_reg(r_i)?;
     let carry = (state.cpu.r[reg::F as usize] & flag::CY) >> 4;
 
     state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
-    state.cpu.r[reg::F as usize] |= (state.cpu.r[reg::A as usize] >> 7) << 4;
-    state.cpu.r[reg::A as usize] <<= 1;
-    state.cpu.r[reg::A as usize] |= carry;
+    state.cpu.r[reg::F as usize] |= (n >> 7) << 4;
+    n <<= 1;
+    n |= carry;
+    state.w_reg(r_i, n)
 }
 
-pub fn rra(state: &mut GBState) {
-    // ROTATE RIGHT THROUGH CARRY the A register
+pub fn rr(state: &mut GBState, r_i: u8) -> Result<(), MemError> {
+    // ROTATE RIGHT THROUGH CARRY the input register
+    let mut n = state.r_reg(r_i)?;
     let carry = (state.cpu.r[reg::F as usize] & flag::CY) >> 4;
 
     state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
-    state.cpu.r[reg::F as usize] |= (state.cpu.r[reg::A as usize] & 1) << 4;
-    state.cpu.r[reg::A as usize] >>= 1;
-    state.cpu.r[reg::A as usize] |= carry << 7;
+    state.cpu.r[reg::F as usize] |= (n & 1) << 4;
+    n >>= 1;
+    n |= carry << 7;
+    state.w_reg(r_i, n)
+}
+
+pub fn bit(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
+    let z = (((state.r_reg(n2)? >> n1) & 1) ^ 1) << 7;
+
+    state.cpu.r[reg::F as usize] &= !(flag::N | flag::ZF);
+    state.cpu.r[reg::F as usize] |= flag::H | z;
+    Ok(())
 }
 
 pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
@@ -456,25 +511,33 @@ pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
         0b000 => match n1 {
             0b000 => Ok(()),
             0b001 => ldnnsp(state),
-            0b010 => todo!(), // STOP
+            0b010 => todo!("STOP"), // STOP
             0b011 => jr8(state),
             _ => jrcc8(state, n1),
         },
-        0b001 => {
-            let p = r_16b_from_pc(state)?;
-            ldrr16(state, n1 >> 1, p);
-            Ok(())
-        }
+        0b001 => match n1 {
+            0b001 | 0b011 | 0b101 | 0b111 => todo!("ADD HL rr"),
+            0b000 | 0b010 | 0b100 | 0b110 => {
+                let p = r_16b_from_pc(state)?;
+                ldrr16(state, n1 >> 1, p);
+                Ok(())
+            }
+            _ => panic!(),
+        },
         0b010 => ld00a(state, n1),
-        0b011 => todo!(), // 16b INC (?)
+        0b011 => match n1 {
+            0b001 | 0b011 | 0b101 | 0b111 => Ok(dec16(state, n1 >> 1)),
+            0b000 | 0b010 | 0b100 | 0b110 => Ok(inc16(state, n1 >> 1)),
+            _ => panic!(),
+        },
         0b100 => inc8(state, n1),
         0b101 => dec8(state, n1),
         0b110 => ldr8(state, n1),
         0b111 => match n1 {
-            0b000 => Ok(rlca(state)),
-            0b001 => Ok(rrca(state)),
-            0b010 => Ok(rla(state)),
-            0b011 => Ok(rra(state)),
+            0b000 => rlc(state, 7),
+            0b001 => rrc(state, 7),
+            0b010 => rl(state, 7),
+            0b011 => rr(state, 7),
             0b100 => Ok(daa(state)),
             0b101 => Ok(cpl(state)),
             0b110 => Ok(scf(state)),
@@ -488,7 +551,7 @@ pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
 pub fn op01(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
     // Dispatcher for the instructions starting with 0b01 (LD r,r and HALT)
     if n1 == 0b110 && n2 == 0b110 {
-        todo!() // HALT
+        todo!("HALT") // HALT
     } else {
         ldrr(state, n1, n2)
     }
@@ -530,7 +593,7 @@ pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
         },
         0b001 => match n1 {
             0b001 => ret(state),
-            0b011 => todo!(), // RETI
+            0b011 => todo!("RETI"), // RETI
             0b101 => Ok(jphl(state)),
             0b111 => Ok(ldsphl(state)),
             _ => {
@@ -554,10 +617,10 @@ pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
         },
         0b011 => match n1 {
             0b000 => jp16(state),
-            0b001 => todo!(), // Bitwise operations
+            0b001 => op_bitwise(state), // Bitwise operations
             0b010 | 0b011 | 0b100 | 0b101 => unimplemented!(),
-            0b110 => todo!(), // DI
-            0b111 => todo!(), // EI
+            0b110 => todo!("DI"), // DI
+            0b111 => todo!("EI"), // EI
             _ => panic!(),
         },
         0b100 => callcc(state, n1 & 0b11),
@@ -581,7 +644,32 @@ pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
                 _ => panic!(),
             }
         }
-        0b111 => todo!(), // RST
+        0b111 => todo!("RST"), // RST
+        _ => panic!(),
+    }
+}
+
+pub fn op_bitwise(state: &mut GBState) -> Result<(), MemError> {
+    let p = r_8b_from_pc(state)?;
+    let opcode = p >> 6;
+    let n1 = p >> 3 & 0b111;
+    let n2 = p & 0b111;
+
+    match opcode {
+        0b00 => match n1 {
+            0b000 => rlc(state, n2),
+            0b001 => rrc(state, n2),
+            0b010 => rl(state, n2),
+            0b011 => rr(state, n2),
+            0b100 => todo!("SLA"),
+            0b101 => todo!("SRA"),
+            0b110 => todo!("SWAP"),
+            0b111 => todo!("SRL"),
+            _ => panic!(),
+        },
+        0b01 => bit(state, n1, n2),
+        0b10 => todo!("RES"),
+        0b11 => todo!("SET"),
         _ => panic!(),
     }
 }

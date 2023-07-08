@@ -1,4 +1,5 @@
 use crate::consts::{BOOT_ROM_FILE, PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
+use crate::io::IORegisters;
 use std::fs::File;
 use std::io::Read;
 
@@ -15,7 +16,7 @@ pub mod reg {
     pub const BC: u8 = 0;
     pub const DE: u8 = 1;
     pub const HL: u8 = 2;
-    pub const AF: u8 = 3;
+    pub const SP: u8 = 3;
 }
 
 pub mod flag {
@@ -53,12 +54,20 @@ impl CPU {
     }
 
     pub fn r16(&self, r: u8) -> u16 {
-        return self.r[r as usize * 2] as u16 | ((self.r[(r as usize * 2) + 1] as u16) << 8);
+        if r == reg::SP {
+            return self.sp;
+        } else {
+            return self.r[r as usize * 2 + 1] as u16 | ((self.r[r as usize * 2] as u16) << 8);
+        }
     }
 
     pub fn w16(&mut self, r: u8, value: u16) {
-        self.r[r as usize * 2] = (value & 0xff) as u8;
-        self.r[(r as usize * 2) + 1] = (value >> 8) as u8;
+        if r == reg::SP {
+            self.sp = value;
+        } else {
+            self.r[r as usize * 2 + 1] = (value & 0xff) as u8;
+            self.r[r as usize * 2] = (value >> 8) as u8;
+        }
     }
 
     pub fn check_flag(&self, flag: u8) -> bool {
@@ -78,6 +87,14 @@ impl CPU {
 pub struct Memory {
     // 16 KiB ROM bank 00
     rom_00: [u8; 0x4000],
+
+    // 8 KiB Video RAM
+    vram: [u8; 0x2000],
+
+    io: IORegisters,
+
+    // High RAM
+    hram: [u8; 0x7f],
 }
 
 #[derive(Debug)]
@@ -91,6 +108,9 @@ impl Memory {
     pub fn new() -> Self {
         Self {
             rom_00: [0; 0x4000],
+            vram: [0; 0x2000],
+            io: IORegisters::new(),
+            hram: [0; 0x7f],
         }
     }
 
@@ -105,11 +125,17 @@ impl Memory {
     pub fn r(&self, addr: u16) -> Result<u8, MemError> {
         if addr < 0x4000 {
             Ok(self.rom_00[addr as usize])
+        } else if addr >= 0x8000 && addr < 0xa000 {
+            Ok(self.vram[addr as usize - 0x8000])
+        } else if addr >= 0xff00 && addr < 0xff80 {
+            Ok(self.io.r(addr as u8))
+        } else if addr >= 0xff80 && addr < 0xffff {
+            Ok(self.hram[addr as usize - 0xff80])
         } else {
-            println!(
-                "Trying to read at address 0x{:04x} which is unimplemented",
-                addr
-            );
+            // println!(
+            //     "Trying to read at address 0x{:04x} which is unimplemented",
+            //     addr
+            // );
             Ok(0)
             // Err(MemError::Unimplemented)
         }
@@ -119,11 +145,19 @@ impl Memory {
         if addr < 0x4000 {
             self.rom_00[addr as usize] = value;
             Ok(())
+        } else if addr >= 0x8000 && addr < 0xa000 {
+            self.vram[addr as usize - 0x8000] = value;
+            Ok(())
+        } else if addr >= 0xff00 && addr < 0xff80 {
+            Ok(self.io.w((addr & 0xff) as u8, value))
+        } else if addr >= 0xff80 && addr < 0xffff {
+            self.hram[addr as usize - 0xff80] = value;
+            Ok(())
         } else {
-            println!(
-                "Trying to write at address 0x{:04x} which is unimplemented",
-                addr
-            );
+            // println!(
+            //     "Trying to write at address 0x{:04x} which is unimplemented",
+            //     addr
+            // );
             Ok(())
             // Err(MemError::Unimplemented)
         }

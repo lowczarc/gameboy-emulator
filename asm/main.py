@@ -150,10 +150,17 @@ instructions = [
     { "opcode": "RRA", "params": [
         { "type": [], "format": lambda args: [0b00011111] },
     ]},
-    # THE NEXT ONES ARE SPECULATIVE BASED ON ASSEMBLED SOURCE CODE
     { "opcode": "BIT", "params": [
-        { "type": ["n", "r"], "format": lambda args: [0b11001011, 0b00001000 | (args[0] << 4) | args[1]] },
-        { "type": ["n", "(HL)"], "format": lambda args: [0b11001011, 0b00001110 | (args[0] << 4)] },
+        { "type": ["n", "r"], "format": lambda args: [0b11001011, 0b01000000 | (args[0] << 3) | args[1]] },
+        { "type": ["n", "(HL)"], "format": lambda args: [0b11001011, 0b01000110 | (args[0] << 3)] },
+    ]},
+    { "opcode": "SET", "params": [
+        { "type": ["n", "r"], "format": lambda args: [0b11001011, 0b11000000 | (args[0] << 3) | args[1]] },
+        { "type": ["n", "(HL)"], "format": lambda args: [0b11001011, 0b11000110 | (args[0] << 3)] },
+    ]},
+    { "opcode": "RES", "params": [
+        { "type": ["n", "r"], "format": lambda args: [0b11001011, 0b10000000 | (args[0] << 3) | args[1]] },
+        { "type": ["n", "(HL)"], "format": lambda args: [0b11001011, 0b10000110 | (args[0] << 3)] },
     ]},
     { "opcode": "RLC", "params": [
         { "type": ["r"], "format": lambda args: [0b11001011, 0b00000000 | args[0]] },

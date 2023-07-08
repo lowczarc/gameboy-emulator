@@ -1,13 +1,13 @@
 pub mod consts;
+pub mod io;
 pub mod opcodes;
 pub mod state;
 pub mod tests;
 
 use crate::state::{GBState, MemError};
 
-pub fn exec_opcode(state: &mut GBState) -> Result<(), MemError> {
+pub fn exec_opcode(state: &mut GBState, counter: u128) -> Result<(), MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
-    println!("{:x}", opcode);
     state.cpu.pc += 1;
 
     let n1 = (opcode >> 3) & 0b111;
@@ -21,14 +21,15 @@ pub fn exec_opcode(state: &mut GBState) -> Result<(), MemError> {
         _ => panic!(),
     }
 
-    println!("DEBUG: {:?}", state.cpu);
     Ok(())
 }
 
 fn main() {
     let mut state = GBState::new();
+    let mut counter = 0u128;
 
     loop {
-        exec_opcode(&mut state).unwrap();
+        exec_opcode(&mut state, counter).unwrap();
+        counter += 1;
     }
 }
