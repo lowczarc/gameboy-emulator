@@ -1,5 +1,19 @@
 use crate::state::{flag, reg, GBState, MemError};
 
+pub fn r_16b_from_pc(state: &mut GBState) -> Result<u16, MemError> {
+    let p: u16 = state.mem.r(state.cpu.pc)? as u16 | ((state.mem.r(state.cpu.pc + 1)? as u16) << 8);
+    state.cpu.pc += 2;
+
+    Ok(p)
+}
+
+pub fn r_8b_from_pc(state: &mut GBState) -> Result<u8, MemError> {
+    let p = state.mem.r(state.cpu.pc)?;
+    state.cpu.pc += 1;
+
+    Ok(p)
+}
+
 pub fn ldrr(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
     // Load a register into another register
     // LD r, r
@@ -8,34 +22,44 @@ pub fn ldrr(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
 
 pub fn ldr8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
     // Load an raw 8b value into a register
-    let p = state.mem.r(state.cpu.pc)?;
-    state.cpu.pc += 1;
+    let p = r_8b_from_pc(state)?;
 
     state.w_reg(n1, p)
 }
 
-pub fn ldrr16(state: &mut GBState, n1: u8) -> Result<(), MemError> {
+pub fn ldrr16(state: &mut GBState, rr: u8, x: u16) {
     // Load a raw 16b value into a register
-    let p: u16 = state.mem.r(state.cpu.pc)? as u16 | ((state.mem.r(state.cpu.pc + 1)? as u16) << 8);
-    state.cpu.pc += 2;
-
-    state.cpu.w16(n1 >> 1, p);
-    Ok(())
+    state.cpu.w16(rr, x);
 }
 
 pub fn ldnnsp(state: &mut GBState) -> Result<(), MemError> {
     // Load SP into an arbitrary position in memory
-    let p: u16 = state.mem.r(state.cpu.pc)? as u16 | ((state.mem.r(state.cpu.pc + 1)? as u16) << 8);
-    state.cpu.pc += 2;
+    let p = r_16b_from_pc(state)?;
 
     state.mem.w(p, (state.cpu.sp & 0xff) as u8)?;
     state.mem.w(p + 1, (state.cpu.sp >> 8) as u8)
 }
 
+pub fn ldsphl(state: &mut GBState) {
+    state.cpu.sp = state.cpu.r16(reg::HL);
+}
+
+pub fn ldnna(state: &mut GBState, nn: u16) -> Result<(), MemError> {
+    // Load A into an arbitrary position in memory
+    state.mem.w(nn, state.cpu.r[reg::A as usize])?;
+    Ok(())
+}
+
+pub fn ldann(state: &mut GBState, nn: u16) -> Result<(), MemError> {
+    // Load A from an arbitrary position in memory
+    state.cpu.r[reg::A as usize] = state.mem.r(nn)?;
+    Ok(())
+}
+
 pub fn jr8(state: &mut GBState) -> Result<(), MemError> {
     // Unconditional relative jump
-    let p = state.mem.r(state.cpu.pc)?;
-    state.cpu.pc += 1;
+    let p = r_8b_from_pc(state)?;
+
     state.cpu.pc = (state.cpu.pc as i16 + p as i8 as i16) as u16;
 
     Ok(())
@@ -43,8 +67,7 @@ pub fn jr8(state: &mut GBState) -> Result<(), MemError> {
 
 pub fn jrcc8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
     // Conditional relative jump
-    let p = state.mem.r(state.cpu.pc)?;
-    state.cpu.pc += 1;
+    let p = r_8b_from_pc(state)?;
 
     if state.cpu.check_flag(n1 & 0b11) {
         state.cpu.pc = (state.cpu.pc as i16 + p as i8 as i16) as u16;
@@ -341,7 +364,11 @@ pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
             0b011 => jr8(state),
             _ => jrcc8(state, n1),
         },
-        0b001 => ldrr16(state, n1),
+        0b001 => {
+            let p = r_16b_from_pc(state)?;
+            ldrr16(state, n1 >> 1, p);
+            Ok(())
+        }
         0b010 => ld00a(state, n1),
         0b011 => todo!(), // 16b INC (?)
         0b100 => inc8(state, n1),
@@ -389,25 +416,41 @@ pub fn op10(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
 pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
     match n2 {
         0b000 => match n1 {
-            0b100 => todo!(), // LD (n) A
+            0b100 => {
+                let n = r_8b_from_pc(state)?;
+                ldnna(state, n as u16 | 0xff00)
+            }
             0b101 => todo!(), // ADD SP 8b
-            0b110 => todo!(), // LD A (n)
-            0b111 => todo!(), // LD HL 8b
-            _ => todo!(),     // RET cc
+            0b110 => {
+                let n = r_8b_from_pc(state)?;
+                ldann(state, n as u16 | 0xff00)
+            }
+            0b111 => {
+                let n = r_8b_from_pc(state)?;
+                ldrr16(state, reg::HL, n as u16 + state.cpu.sp);
+                Ok(())
+            }
+            _ => todo!(), // RET cc
         },
         0b001 => match n1 {
             0b001 => todo!(), // RET
             0b011 => todo!(), // RETI
             0b101 => todo!(), // JP HL
-            0b111 => todo!(), // LD HL 8b
-            _ => todo!(),     // POP rr
+            0b111 => Ok(ldsphl(state)),
+            _ => todo!(), // POP rr
         },
         0b010 => match n1 {
-            0b100 => todo!(), // LD (C) A
-            0b101 => todo!(), // LD (nn) A
-            0b110 => todo!(), // LD A (C)
-            0b111 => todo!(), // LD A (nn)
-            _ => todo!(),     // JP cc 16b
+            0b100 => ldnna(state, state.cpu.r[reg::C as usize] as u16 | 0xff00),
+            0b101 => {
+                let nn = r_16b_from_pc(state)?;
+                ldnna(state, nn)
+            }
+            0b110 => ldann(state, state.cpu.r[reg::C as usize] as u16 | 0xff00),
+            0b111 => {
+                let nn = r_16b_from_pc(state)?;
+                ldann(state, nn)
+            }
+            _ => todo!(), // JP cc 16b
         },
         0b011 => match n1 {
             0b000 => todo!(), // JP 16b
@@ -424,8 +467,7 @@ pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
             _ => todo!(), // PUSH rr
         },
         0b110 => {
-            let p = state.mem.r(state.cpu.pc)?;
-            state.cpu.pc += 1;
+            let p = r_8b_from_pc(state)?;
 
             match n1 {
                 0b000 => Ok(add(state, p)),
