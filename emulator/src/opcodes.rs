@@ -311,6 +311,42 @@ pub fn cpr(state: &mut GBState, n2: u8) -> Result<(), MemError> {
     Ok(())
 }
 
+pub fn rlca(state: &mut GBState) {
+    // ROTATE LEFT the A register
+    state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
+    state.cpu.r[reg::F as usize] |= (state.cpu.r[reg::A as usize] >> 7) << 4;
+    state.cpu.r[reg::A as usize] <<= 1;
+    state.cpu.r[reg::A as usize] |= (state.cpu.r[reg::F as usize] & flag::CY) >> 4;
+}
+
+pub fn rrca(state: &mut GBState) {
+    // ROTATE RIGHT the A register
+    state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
+    state.cpu.r[reg::F as usize] |= (state.cpu.r[reg::A as usize] & 1) << 4;
+    state.cpu.r[reg::A as usize] >>= 1;
+    state.cpu.r[reg::A as usize] |= ((state.cpu.r[reg::F as usize] & flag::CY) >> 4) << 7;
+}
+
+pub fn rla(state: &mut GBState) {
+    // ROTATE LEFT THROUGH CARRY the A register
+    let carry = (state.cpu.r[reg::F as usize] & flag::CY) >> 4;
+
+    state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
+    state.cpu.r[reg::F as usize] |= (state.cpu.r[reg::A as usize] >> 7) << 4;
+    state.cpu.r[reg::A as usize] <<= 1;
+    state.cpu.r[reg::A as usize] |= carry;
+}
+
+pub fn rra(state: &mut GBState) {
+    // ROTATE RIGHT THROUGH CARRY the A register
+    let carry = (state.cpu.r[reg::F as usize] & flag::CY) >> 4;
+
+    state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
+    state.cpu.r[reg::F as usize] |= (state.cpu.r[reg::A as usize] & 1) << 4;
+    state.cpu.r[reg::A as usize] >>= 1;
+    state.cpu.r[reg::A as usize] |= carry << 7;
+}
+
 pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
     // Dispatcher for the instructions starting with 0b00 based on their 3 LSB
     match n2 {
@@ -328,10 +364,10 @@ pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
         0b101 => dec8(state, n1),
         0b110 => ldr8(state, n1),
         0b111 => match n1 {
-            0b000 => todo!(), // RLCA
-            0b001 => todo!(), // RRCA
-            0b010 => todo!(), // RLA
-            0b011 => todo!(), // RRA
+            0b000 => Ok(rlca(state)),
+            0b001 => Ok(rrca(state)),
+            0b010 => Ok(rla(state)),
+            0b011 => Ok(rra(state)),
             0b100 => Ok(daa(state)),
             0b101 => Ok(cpl(state)),
             0b110 => Ok(scf(state)),
@@ -353,14 +389,14 @@ pub fn op01(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
 
 pub fn op10(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
     match n1 {
-        0b000 => addr(state, n2), // ADD
-        0b001 => adcr(state, n2), // ADC
-        0b010 => subr(state, n2), // SUB
-        0b011 => sbcr(state, n2), // SBC
-        0b100 => andr(state, n2), // AND
-        0b101 => xorr(state, n2), // XOR
-        0b110 => orr(state, n2),  // OR
-        0b111 => cpr(state, n2),  // CP
+        0b000 => addr(state, n2),
+        0b001 => adcr(state, n2),
+        0b010 => subr(state, n2),
+        0b011 => sbcr(state, n2),
+        0b100 => andr(state, n2),
+        0b101 => xorr(state, n2),
+        0b110 => orr(state, n2),
+        0b111 => cpr(state, n2),
         _ => panic!(),
     }
 }

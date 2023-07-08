@@ -315,3 +315,63 @@ fn test_cp() -> Result<(), MemError> {
     assert_eq!(state.cpu.r[reg::F as usize] & flag::CY, 0); // Check Carry Flag
     Ok(())
 }
+
+#[test]
+fn test_rlca() -> Result<(), MemError> {
+    let mut state = GBState::new();
+    state.cpu.r[reg::A as usize] = 0b10011100;
+    state.cpu.r[reg::F as usize] = 0;
+    state.mem.w(0, 0b00000111)?; // Opcode for RLCA
+    exec_opcode(&mut state)?;
+    assert_eq!(state.cpu.r[reg::A as usize], 0b00111001);
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::ZF, 0); // Check Zero Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::N, 0); // Check Subtract Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::H, 0); // Check Half Carry Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::CY, flag::CY); // Check Carry Flag
+    Ok(())
+}
+
+#[test]
+fn test_rrca() -> Result<(), MemError> {
+    let mut state = GBState::new();
+    state.cpu.r[reg::A as usize] = 0b10011100;
+    state.cpu.r[reg::F as usize] = 0;
+    state.mem.w(0, 0b00001111)?; // Opcode for RLCA
+    exec_opcode(&mut state)?;
+    assert_eq!(state.cpu.r[reg::A as usize], 0b01001110);
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::ZF, 0); // Check Zero Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::N, 0); // Check Subtract Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::H, 0); // Check Half Carry Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::CY, 0); // Check Carry Flag
+    Ok(())
+}
+
+#[test]
+fn test_rla() -> Result<(), MemError> {
+    let mut state = GBState::new();
+    state.cpu.r[reg::A as usize] = 0b00011100;
+    state.cpu.r[reg::F as usize] = flag::CY;
+    state.mem.w(0, 0b00010111)?; // Opcode for RLA
+    exec_opcode(&mut state)?;
+    assert_eq!(state.cpu.r[reg::A as usize], 0b00111001);
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::ZF, 0); // Check Zero Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::N, 0); // Check Subtract Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::H, 0); // Check Half Carry Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::CY, 0); // Check Carry Flag
+    Ok(())
+}
+
+#[test]
+fn test_rra() -> Result<(), MemError> {
+    let mut state = GBState::new();
+    state.cpu.r[reg::A as usize] = 0b00011101;
+    state.cpu.r[reg::F as usize] = flag::CY;
+    state.mem.w(0, 0b00011111)?; // Opcode for RLA
+    exec_opcode(&mut state)?;
+    assert_eq!(state.cpu.r[reg::A as usize], 0b10001110);
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::ZF, 0); // Check Zero Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::N, 0); // Check Subtract Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::H, 0); // Check Half Carry Flag
+    assert_eq!(state.cpu.r[reg::F as usize] & flag::CY, flag::CY); // Check Carry Flag
+    Ok(())
+}
