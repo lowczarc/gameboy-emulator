@@ -130,11 +130,12 @@ pub fn daa(state: &mut GBState) {
     let nibble_low = state.cpu.r[reg::A as usize] & 0b1111;
     let nibble_high = state.cpu.r[reg::A as usize] >> 4;
     let sub_flag = (state.cpu.r[reg::F as usize] & flag::N) != 0;
+    let half_carry_flag = (state.cpu.r[reg::F as usize] & flag::H) != 0;
 
-    if nibble_low > 9 && !sub_flag {
+    if (half_carry_flag || nibble_low > 9) && !sub_flag {
         state.cpu.r[reg::A as usize] += 0x06;
     }
-    if nibble_low > 9 && sub_flag {
+    if (half_carry_flag || nibble_low > 9) && sub_flag {
         state.cpu.r[reg::A as usize] -= 0x06;
     }
 

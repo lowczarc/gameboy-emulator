@@ -152,7 +152,7 @@ fn test_cpl() -> Result<(), MemError> {
 }
 
 #[test]
-fn test_daa_add() -> Result<(), MemError> {
+fn test_daa_add_1() -> Result<(), MemError> {
     let mut state = GBState::new();
     state.mem.w(0, 0b00100111)?; // DAA opcode
     state.cpu.r[reg::A as usize] = 0x1B;
@@ -165,15 +165,43 @@ fn test_daa_add() -> Result<(), MemError> {
 }
 
 #[test]
-fn test_daa_sub() -> Result<(), MemError> {
+fn test_daa_add_2() -> Result<(), MemError> {
+    let mut state = GBState::new();
+    state.mem.w(0, 0b00100111)?; // DAA opcode
+    state.cpu.r[reg::A as usize] = 0x37 + 0x9;
+    state.cpu.r[reg::F as usize] = flag::H;
+
+    exec_opcode(&mut state)?;
+
+    assert_eq!(state.cpu.r[reg::A as usize], 0x46);
+
+    Ok(())
+}
+
+#[test]
+fn test_daa_sub_1() -> Result<(), MemError> {
     let mut state = GBState::new();
     state.mem.w(0, 0b00100111)?; // DAA opcode
     state.cpu.r[reg::A as usize] = 0x1F;
-    state.cpu.r[reg::F as usize] = flag::N; // Substraction flag
+    state.cpu.r[reg::F as usize] = flag::N;
 
     exec_opcode(&mut state)?;
 
     assert_eq!(state.cpu.r[reg::A as usize], 0x19);
+
+    Ok(())
+}
+
+#[test]
+fn test_daa_sub_2() -> Result<(), MemError> {
+    let mut state = GBState::new();
+    state.mem.w(0, 0b00100111)?; // DAA opcode
+    state.cpu.r[reg::A as usize] = 0x30 - 0x9;
+    state.cpu.r[reg::F as usize] = flag::N | flag::H;
+
+    exec_opcode(&mut state)?;
+
+    assert_eq!(state.cpu.r[reg::A as usize], 0x21);
 
     Ok(())
 }
