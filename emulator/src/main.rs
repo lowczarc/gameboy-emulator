@@ -1,3 +1,4 @@
+pub mod audio;
 pub mod consts;
 pub mod display;
 pub mod io;
@@ -5,9 +6,11 @@ pub mod opcodes;
 pub mod state;
 pub mod tests;
 
+use crate::audio::AudioChannel;
 use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
 use crate::state::{GBState, MemError};
 use std::time::SystemTime;
+use std::{thread, time};
 
 pub fn exec_opcode(state: &mut GBState) -> Result<(), MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;

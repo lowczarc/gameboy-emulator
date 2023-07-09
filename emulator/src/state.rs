@@ -1,3 +1,4 @@
+use crate::audio::Audio;
 use crate::consts::{BOOT_ROM_FILE, PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
 use crate::display::Display;
 use std::fs::File;
@@ -83,7 +84,6 @@ impl CPU {
     }
 }
 
-#[derive(Debug)]
 pub struct Memory {
     boot_rom: [u8; 0x100],
     pub boot_rom_on: bool,
@@ -107,6 +107,8 @@ pub struct Memory {
 
     // High RAM
     hram: [u8; 0x7f],
+
+    pub audio: Audio,
 }
 
 #[derive(Debug)]
@@ -132,6 +134,7 @@ impl Memory {
             display,
             io: [0; 0x80],
             hram: [0; 0x7f],
+            audio: Audio::new(),
         }
     }
 
@@ -168,12 +171,13 @@ impl Memory {
             Ok(self.r_io((addr & 0xff) as u8))
         } else if addr >= 0xff80 && addr < 0xffff {
             Ok(self.hram[addr as usize - 0xff80])
+        } else if addr == 0xffff {
+            Ok(0)
         } else {
             println!(
                 "Trying to read at address 0x{:04x} which is unimplemented",
                 addr
             );
-            // Ok(0)
             Err(MemError::Unimplemented)
         }
     }
@@ -201,12 +205,13 @@ impl Memory {
         } else if addr >= 0xff80 && addr < 0xffff {
             self.hram[addr as usize - 0xff80] = value;
             Ok(())
+        } else if addr == 0xffff {
+            Ok(())
         } else {
             println!(
                 "Trying to write at address 0x{:04x} which is unimplemented",
                 addr
             );
-            // Ok(())
             Err(MemError::Unimplemented)
         }
     }

@@ -1,7 +1,7 @@
 use crate::state::MemError;
 use minifb::{Window, WindowOptions};
 
-const COLORS: [u32; 4] = [0x00081820, 0x346856, 0x0088c070, 0x00e0f8d0];
+const COLORS: [u32; 4] = [0x00e0f8d0, 0x0088c070, 0x346856, 0x00081820];
 
 #[derive(Debug)]
 pub struct Display {
