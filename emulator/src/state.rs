@@ -1,8 +1,7 @@
 use crate::consts::{BOOT_ROM_FILE, PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
 use crate::display::Display;
-use crate::io::IORegisters;
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::Read;
 
 pub mod reg {
     pub const B: u8 = 0;
@@ -86,13 +85,25 @@ impl CPU {
 
 #[derive(Debug)]
 pub struct Memory {
+    boot_rom: [u8; 0x100],
+    pub boot_rom_on: bool,
+
     // 16 KiB ROM bank 00
     rom_00: [u8; 0x4000],
+
+    // 16 KiB ROM bank 01
+    rom_01: [u8; 0x4000],
+
+    // 4 KiB Work RAM 00
+    wram_00: [u8; 0x1000],
+
+    // 4 KiB Work RAM 00
+    wram_01: [u8; 0x1000],
 
     // 8 KiB Video RAM
     pub display: Display,
 
-    io: IORegisters,
+    pub io: [u8; 0x80],
 
     // High RAM
     hram: [u8; 0x7f],
@@ -112,9 +123,14 @@ impl Memory {
         display.cls();
 
         Self {
+            boot_rom: [0; 0x100],
+            boot_rom_on: true,
             rom_00: [0; 0x4000],
+            rom_01: [0; 0x4000],
+            wram_00: [0; 0x1000],
+            wram_01: [0; 0x1000],
             display,
-            io: IORegisters::new(),
+            io: [0; 0x80],
             hram: [0; 0x7f],
         }
     }
@@ -122,7 +138,7 @@ impl Memory {
     pub fn load_boot_rom(&mut self) -> Result<(), std::io::Error> {
         let mut f = File::open(BOOT_ROM_FILE)?;
 
-        f.read(&mut self.rom_00[0x00..0x100])?;
+        f.read(&mut self.boot_rom)?;
 
         Ok(())
     }
@@ -130,20 +146,26 @@ impl Memory {
     pub fn load_rom(&mut self, file: &str) -> Result<(), std::io::Error> {
         let mut f = File::open(file)?;
 
-        f.seek(SeekFrom::Current(0x100))?;
-
-        f.read(&mut self.rom_00[0x100..])?;
+        f.read(&mut self.rom_00)?;
 
         Ok(())
     }
 
     pub fn r(&self, addr: u16) -> Result<u8, MemError> {
-        if addr < 0x4000 {
+        if addr < 0x100 && self.boot_rom_on {
+            Ok(self.boot_rom[addr as usize])
+        } else if addr < 0x4000 {
             Ok(self.rom_00[addr as usize])
+        } else if addr < 0x8000 {
+            Ok(self.rom_01[addr as usize - 0x4000])
+        } else if addr >= 0xc000 && addr < 0xd000 {
+            Ok(self.wram_00[addr as usize - 0xc000])
+        } else if addr >= 0xd000 && addr < 0xe000 {
+            Ok(self.wram_01[addr as usize - 0xd000])
         } else if addr >= 0x8000 && addr < 0xa000 {
             self.display.r(addr & !0x8000)
         } else if addr >= 0xff00 && addr < 0xff80 {
-            Ok(self.io.r(addr as u8))
+            Ok(self.r_io((addr & 0xff) as u8))
         } else if addr >= 0xff80 && addr < 0xffff {
             Ok(self.hram[addr as usize - 0xff80])
         } else {
@@ -157,13 +179,25 @@ impl Memory {
     }
 
     pub fn w(&mut self, addr: u16, value: u8) -> Result<(), MemError> {
-        if addr < 0x4000 {
+        if addr < 0x100 && self.boot_rom_on {
+            self.boot_rom[addr as usize] = value;
+            Ok(())
+        } else if addr < 0x4000 {
             self.rom_00[addr as usize] = value;
+            Ok(())
+        } else if addr < 0x8000 {
+            self.rom_01[addr as usize - 0x4000] = value;
+            Ok(())
+        } else if addr >= 0xc000 && addr < 0xd000 {
+            self.wram_00[addr as usize - 0xc000] = value;
+            Ok(())
+        } else if addr >= 0xd000 && addr < 0xe000 {
+            self.wram_01[addr as usize - 0xd000] = value;
             Ok(())
         } else if addr >= 0x8000 && addr < 0xa000 {
             self.display.w(addr & !0x8000, value)
         } else if addr >= 0xff00 && addr < 0xff80 {
-            Ok(self.io.w((addr & 0xff) as u8, value))
+            Ok(self.w_io((addr & 0xff) as u8, value))
         } else if addr >= 0xff80 && addr < 0xffff {
             self.hram[addr as usize - 0xff80] = value;
             Ok(())
@@ -201,9 +235,7 @@ impl GBState {
         } else if r_i == 7 {
             Ok(self.cpu.r[6])
         } else if r_i == 6 {
-            let hl: u16 = self.cpu.r[4] as u16 | (self.cpu.r[5] as u16) << 8;
-
-            self.mem.r(hl)
+            self.mem.r(self.cpu.r16(reg::HL))
         } else {
             panic!("r_i must be a 3 bits register input number")
         }
@@ -215,9 +247,7 @@ impl GBState {
         } else if r_i == 7 {
             self.cpu.r[6] = value;
         } else if r_i == 6 {
-            let hl: u16 = self.cpu.r[4] as u16 | (self.cpu.r[5] as u16) << 8;
-
-            self.mem.w(hl, value)?;
+            self.mem.w(self.cpu.r16(reg::HL), value)?;
         } else {
             panic!("r_i must be a 3 bits register input number")
         }
@@ -226,7 +256,7 @@ impl GBState {
 
     pub fn update_display(&mut self) {
         self.mem.display.cls();
-        self.mem.display.print_all_tiles();
+        self.mem.display.print_tile_map1();
         self.mem.display.update();
     }
 }

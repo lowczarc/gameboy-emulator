@@ -9,7 +9,7 @@ use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
 use crate::state::{GBState, MemError};
 use std::time::SystemTime;
 
-pub fn exec_opcode(state: &mut GBState, counter: u128) -> Result<(), MemError> {
+pub fn exec_opcode(state: &mut GBState) -> Result<(), MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
     state.cpu.pc += 1;
 
@@ -19,7 +19,7 @@ pub fn exec_opcode(state: &mut GBState, counter: u128) -> Result<(), MemError> {
     match opcode >> 6 {
         0b00 => opcodes::op00(state, n1, n2)?,
         0b01 => opcodes::op01(state, n1, n2)?,
-        0b10 => opcodes::op10(state, n1, n2)?, // Arithmetic
+        0b10 => opcodes::op10(state, n1, n2)?,
         0b11 => opcodes::op11(state, n1, n2)?,
         _ => panic!(),
     }
@@ -30,11 +30,10 @@ pub fn exec_opcode(state: &mut GBState, counter: u128) -> Result<(), MemError> {
 fn main() {
     let mut state = GBState::new();
     state.mem.load_rom("/home/lancelot/tetris.bin").unwrap();
-    let mut counter = 0u128;
 
     let mut last_dt = SystemTime::now();
     loop {
-        exec_opcode(&mut state, counter).unwrap();
+        exec_opcode(&mut state).unwrap();
         if SystemTime::now()
             .duration_since(last_dt)
             .unwrap()
@@ -44,6 +43,5 @@ fn main() {
             state.update_display();
             last_dt = SystemTime::now();
         }
-        counter += 1;
     }
 }

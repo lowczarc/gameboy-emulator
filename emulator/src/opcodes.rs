@@ -1,4 +1,10 @@
+use crate::consts::CPU_CYCLE_LENGTH_NANOS;
 use crate::state::{flag, reg, GBState, MemError};
+use std::{thread, time};
+
+pub fn cycles(n: u64) {
+    thread::sleep(time::Duration::from_nanos(CPU_CYCLE_LENGTH_NANOS * n))
+}
 
 pub fn r_16b_from_pc(state: &mut GBState) -> Result<u16, MemError> {
     let p: u16 = state.mem.r(state.cpu.pc)? as u16 | ((state.mem.r(state.cpu.pc + 1)? as u16) << 8);
@@ -24,6 +30,7 @@ pub fn ldr8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
     // Load an raw 8b value into a register
     let p = r_8b_from_pc(state)?;
 
+    cycles(8);
     state.w_reg(n1, p)
 }
 
@@ -36,6 +43,7 @@ pub fn ldnnsp(state: &mut GBState) -> Result<(), MemError> {
     // Load SP into an arbitrary position in memory
     let p = r_16b_from_pc(state)?;
 
+    cycles(20);
     state.mem.w(p, (state.cpu.sp & 0xff) as u8)?;
     state.mem.w(p + 1, (state.cpu.sp >> 8) as u8)
 }
@@ -87,7 +95,7 @@ pub fn jr8(state: &mut GBState) -> Result<(), MemError> {
 
     state.cpu.pc = (state.cpu.pc as i16 + p as i8 as i16) as u16;
 
-    Ok(())
+    Ok(cycles(12))
 }
 
 pub fn jrcc8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
@@ -95,10 +103,11 @@ pub fn jrcc8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
     let p = r_8b_from_pc(state)?;
 
     if state.cpu.check_flag(n1 & 0b11) {
+        cycles(4);
         state.cpu.pc = (state.cpu.pc as i16 + p as i8 as i16) as u16;
     }
 
-    Ok(())
+    Ok(cycles(8))
 }
 
 pub fn jp16(state: &mut GBState) -> Result<(), MemError> {
@@ -107,7 +116,7 @@ pub fn jp16(state: &mut GBState) -> Result<(), MemError> {
 
     state.cpu.pc = p;
 
-    Ok(())
+    Ok(cycles(16))
 }
 
 pub fn jphl(state: &mut GBState) {
@@ -120,10 +129,11 @@ pub fn jpcc16(state: &mut GBState, n1: u8) -> Result<(), MemError> {
     let p = r_16b_from_pc(state)?;
 
     if state.cpu.check_flag(n1 & 0b11) {
+        cycles(4);
         state.cpu.pc = p;
     }
 
-    Ok(())
+    Ok(cycles(12))
 }
 
 pub fn call(state: &mut GBState) -> Result<(), MemError> {
@@ -141,11 +151,12 @@ pub fn callcc(state: &mut GBState, n1: u8) -> Result<(), MemError> {
     let p = r_16b_from_pc(state)?;
 
     if state.cpu.check_flag(n1 & 0b11) {
+        cycles(12);
         push(state, state.cpu.pc)?;
         state.cpu.pc = p;
     }
 
-    Ok(())
+    Ok(cycles(12))
 }
 
 pub fn ret(state: &mut GBState) -> Result<(), MemError> {
@@ -154,15 +165,16 @@ pub fn ret(state: &mut GBState) -> Result<(), MemError> {
     if state.cpu.pc == 0 {
         panic!("RET to start");
     }
-    Ok(())
+    Ok(cycles(16))
 }
 
 pub fn retcc(state: &mut GBState, n1: u8) -> Result<(), MemError> {
     if state.cpu.check_flag(n1 & 0b11) {
+        cycles(12);
         state.cpu.pc = pop(state)?;
     }
 
-    Ok(())
+    Ok(cycles(8))
 }
 
 pub fn ld00a(state: &mut GBState, n1: u8) -> Result<(), MemError> {
@@ -191,7 +203,7 @@ pub fn ld00a(state: &mut GBState, n1: u8) -> Result<(), MemError> {
         state.cpu.w16(reg::HL, state.cpu.r16(reg::HL) - 1); // (HL-)
     }
 
-    Ok(())
+    Ok(cycles(8))
 }
 
 pub fn inc8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
@@ -206,7 +218,7 @@ pub fn inc8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
         state.cpu.r[reg::F as usize] |= flag::H;
     }
 
-    Ok(())
+    Ok(cycles(4))
 }
 
 pub fn dec8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
@@ -223,7 +235,7 @@ pub fn dec8(state: &mut GBState, n1: u8) -> Result<(), MemError> {
         state.cpu.r[reg::F as usize] |= flag::H;
     }
 
-    Ok(())
+    Ok(cycles(4))
 }
 
 pub fn inc16(state: &mut GBState, rr: u8) {
@@ -238,6 +250,7 @@ pub fn inc16(state: &mut GBState, rr: u8) {
     if state.cpu.r16(rr) & 0xff == 0x0 {
         state.cpu.r[reg::F as usize] |= flag::H;
     }
+    cycles(8)
 }
 
 pub fn dec16(state: &mut GBState, rr: u8) {
@@ -253,6 +266,7 @@ pub fn dec16(state: &mut GBState, rr: u8) {
     if state.cpu.r16(rr) & 0xff == 0xff {
         state.cpu.r[reg::F as usize] |= flag::H;
     }
+    cycles(8)
 }
 
 pub fn ccf(state: &mut GBState) {
@@ -509,7 +523,7 @@ pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
     // Dispatcher for the instructions starting with 0b00 based on their 3 LSB
     match n2 {
         0b000 => match n1 {
-            0b000 => Ok(()),
+            0b000 => Ok(cycles(4)),
             0b001 => ldnnsp(state),
             0b010 => todo!("STOP"), // STOP
             0b011 => jr8(state),
@@ -520,7 +534,7 @@ pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
             0b000 | 0b010 | 0b100 | 0b110 => {
                 let p = r_16b_from_pc(state)?;
                 ldrr16(state, n1 >> 1, p);
-                Ok(())
+                Ok(cycles(12))
             }
             _ => panic!(),
         },
@@ -533,17 +547,20 @@ pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
         0b100 => inc8(state, n1),
         0b101 => dec8(state, n1),
         0b110 => ldr8(state, n1),
-        0b111 => match n1 {
-            0b000 => rlc(state, 7),
-            0b001 => rrc(state, 7),
-            0b010 => rl(state, 7),
-            0b011 => rr(state, 7),
-            0b100 => Ok(daa(state)),
-            0b101 => Ok(cpl(state)),
-            0b110 => Ok(scf(state)),
-            0b111 => Ok(ccf(state)),
-            _ => panic!(),
-        },
+        0b111 => {
+            cycles(4);
+            match n1 {
+                0b000 => rlc(state, 7),
+                0b001 => rrc(state, 7),
+                0b010 => rl(state, 7),
+                0b011 => rr(state, 7),
+                0b100 => Ok(daa(state)),
+                0b101 => Ok(cpl(state)),
+                0b110 => Ok(scf(state)),
+                0b111 => Ok(ccf(state)),
+                _ => panic!(),
+            }
+        }
         _ => panic!(),
     }
 }
@@ -551,14 +568,23 @@ pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
 pub fn op01(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
     // Dispatcher for the instructions starting with 0b01 (LD r,r and HALT)
     if n1 == 0b110 && n2 == 0b110 {
+        cycles(4);
         todo!("HALT") // HALT
     } else {
+        cycles(4);
+        if n1 == 0b110 || n2 == 0b110 {
+            cycles(4);
+        }
         ldrr(state, n1, n2)
     }
 }
 
 pub fn op10(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
     // Dispatcher for the instructions starting with 0b10 (Arithmetic)
+    cycles(4);
+    if n2 == 0b110 {
+        cycles(4);
+    }
     match n1 {
         0b000 => Ok(add(state, state.r_reg(n2)?)),
         0b001 => Ok(adc(state, state.r_reg(n2)?)),
@@ -577,11 +603,13 @@ pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
         0b000 => match n1 {
             0b100 => {
                 let n = r_8b_from_pc(state)?;
+                cycles(12);
                 ldnna(state, n as u16 | 0xff00)
             }
             0b101 => addsp8(state),
             0b110 => {
                 let n = r_8b_from_pc(state)?;
+                cycles(12);
                 ldann(state, n as u16 | 0xff00)
             }
             0b111 => {
@@ -598,19 +626,28 @@ pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
             0b111 => Ok(ldsphl(state)),
             _ => {
                 let p = pop(state)?;
+                cycles(12);
                 state.cpu.w16(n1 >> 1, p);
                 Ok(())
             }
         },
         0b010 => match n1 {
-            0b100 => ldnna(state, state.cpu.r[reg::C as usize] as u16 | 0xff00),
+            0b100 => {
+                cycles(8);
+                ldnna(state, state.cpu.r[reg::C as usize] as u16 | 0xff00)
+            }
             0b101 => {
                 let nn = r_16b_from_pc(state)?;
+                cycles(16);
                 ldnna(state, nn)
             }
-            0b110 => ldann(state, state.cpu.r[reg::C as usize] as u16 | 0xff00),
+            0b110 => {
+                cycles(8);
+                ldann(state, state.cpu.r[reg::C as usize] as u16 | 0xff00)
+            }
             0b111 => {
                 let nn = r_16b_from_pc(state)?;
+                cycles(16);
                 ldann(state, nn)
             }
             _ => jpcc16(state, n1 & 0b11),
@@ -627,11 +664,15 @@ pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
         0b101 => match n1 {
             0b001 => call(state),
             0b011 | 0b101 | 0b111 => unimplemented!(),
-            _ => push(state, state.cpu.r16(n1 >> 1)),
+            _ => {
+                cycles(16);
+                push(state, state.cpu.r16(n1 >> 1))
+            }
         },
         0b110 => {
             let p = r_8b_from_pc(state)?;
 
+            cycles(8);
             match n1 {
                 0b000 => Ok(add(state, p)),
                 0b001 => Ok(adc(state, p)),
@@ -655,6 +696,10 @@ pub fn op_bitwise(state: &mut GBState) -> Result<(), MemError> {
     let n1 = p >> 3 & 0b111;
     let n2 = p & 0b111;
 
+    cycles(8);
+    if n2 == 110 {
+        cycles(8);
+    }
     match opcode {
         0b00 => match n1 {
             0b000 => rlc(state, n2),
