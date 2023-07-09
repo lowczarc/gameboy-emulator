@@ -1,10 +1,13 @@
 pub mod consts;
+pub mod display;
 pub mod io;
 pub mod opcodes;
 pub mod state;
 pub mod tests;
 
+use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
 use crate::state::{GBState, MemError};
+use std::time::SystemTime;
 
 pub fn exec_opcode(state: &mut GBState, counter: u128) -> Result<(), MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
@@ -26,10 +29,21 @@ pub fn exec_opcode(state: &mut GBState, counter: u128) -> Result<(), MemError> {
 
 fn main() {
     let mut state = GBState::new();
+    state.mem.load_rom("/home/lancelot/tetris.bin").unwrap();
     let mut counter = 0u128;
 
+    let mut last_dt = SystemTime::now();
     loop {
         exec_opcode(&mut state, counter).unwrap();
+        if SystemTime::now()
+            .duration_since(last_dt)
+            .unwrap()
+            .as_micros()
+            > DISPLAY_UPDATE_SLEEP_TIME_MICROS as u128
+        {
+            state.update_display();
+            last_dt = SystemTime::now();
+        }
         counter += 1;
     }
 }

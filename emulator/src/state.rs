@@ -1,7 +1,8 @@
 use crate::consts::{BOOT_ROM_FILE, PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
+use crate::display::Display;
 use crate::io::IORegisters;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 
 pub mod reg {
     pub const B: u8 = 0;
@@ -89,7 +90,7 @@ pub struct Memory {
     rom_00: [u8; 0x4000],
 
     // 8 KiB Video RAM
-    vram: [u8; 0x2000],
+    pub display: Display,
 
     io: IORegisters,
 
@@ -106,9 +107,13 @@ pub enum MemError {
 
 impl Memory {
     pub fn new() -> Self {
+        let mut display = Display::new();
+
+        display.cls();
+
         Self {
             rom_00: [0; 0x4000],
-            vram: [0; 0x2000],
+            display,
             io: IORegisters::new(),
             hram: [0; 0x7f],
         }
@@ -122,22 +127,32 @@ impl Memory {
         Ok(())
     }
 
+    pub fn load_rom(&mut self, file: &str) -> Result<(), std::io::Error> {
+        let mut f = File::open(file)?;
+
+        f.seek(SeekFrom::Current(0x100))?;
+
+        f.read(&mut self.rom_00[0x100..])?;
+
+        Ok(())
+    }
+
     pub fn r(&self, addr: u16) -> Result<u8, MemError> {
         if addr < 0x4000 {
             Ok(self.rom_00[addr as usize])
         } else if addr >= 0x8000 && addr < 0xa000 {
-            Ok(self.vram[addr as usize - 0x8000])
+            self.display.r(addr & !0x8000)
         } else if addr >= 0xff00 && addr < 0xff80 {
             Ok(self.io.r(addr as u8))
         } else if addr >= 0xff80 && addr < 0xffff {
             Ok(self.hram[addr as usize - 0xff80])
         } else {
-            // println!(
-            //     "Trying to read at address 0x{:04x} which is unimplemented",
-            //     addr
-            // );
-            Ok(0)
-            // Err(MemError::Unimplemented)
+            println!(
+                "Trying to read at address 0x{:04x} which is unimplemented",
+                addr
+            );
+            // Ok(0)
+            Err(MemError::Unimplemented)
         }
     }
 
@@ -146,20 +161,19 @@ impl Memory {
             self.rom_00[addr as usize] = value;
             Ok(())
         } else if addr >= 0x8000 && addr < 0xa000 {
-            self.vram[addr as usize - 0x8000] = value;
-            Ok(())
+            self.display.w(addr & !0x8000, value)
         } else if addr >= 0xff00 && addr < 0xff80 {
             Ok(self.io.w((addr & 0xff) as u8, value))
         } else if addr >= 0xff80 && addr < 0xffff {
             self.hram[addr as usize - 0xff80] = value;
             Ok(())
         } else {
-            // println!(
-            //     "Trying to write at address 0x{:04x} which is unimplemented",
-            //     addr
-            // );
-            Ok(())
-            // Err(MemError::Unimplemented)
+            println!(
+                "Trying to write at address 0x{:04x} which is unimplemented",
+                addr
+            );
+            // Ok(())
+            Err(MemError::Unimplemented)
         }
     }
 }
@@ -208,5 +222,11 @@ impl GBState {
             panic!("r_i must be a 3 bits register input number")
         }
         Ok(())
+    }
+
+    pub fn update_display(&mut self) {
+        self.mem.display.cls();
+        self.mem.display.print_all_tiles();
+        self.mem.display.update();
     }
 }

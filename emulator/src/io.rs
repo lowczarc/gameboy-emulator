@@ -15,7 +15,7 @@ impl IORegisters {
             0x25 => println!("READ Sound panning"),
             0x26 => println!("READ Sound on/off"),
             0x42 => println!("READ Viewport Y Position"),
-            0x44 => println!("READ LCD Y Coordinate"),
+            0x44 => (), // println!("READ LCD Y Coordinate"),
             0x47 => println!("READ BG palette data"),
             _ => println!("Unknowned READ in IO register at address 0xff{:02x}", addr),
         }
