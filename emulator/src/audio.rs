@@ -1,6 +1,5 @@
 use rodio::{OutputStream, Sink, Source};
 
-use std::f32::consts::PI;
 use std::time::Duration;
 
 const SAMPLE_RATE: u32 = 50000;
@@ -41,12 +40,12 @@ impl Iterator for Wave {
     fn next(&mut self) -> Option<f32> {
         self.num_sample = self.num_sample.wrapping_add(1);
 
-        if (self.period_value == 0) {
+        if self.period_value == 0 {
             return None;
         }
 
         let envelope_time = if self.env_sweep_pace != 0 {
-            ((self.num_sample as f32 / SAMPLE_RATE as f32) * 64. / self.env_sweep_pace as f32)
+            (self.num_sample as f32 / SAMPLE_RATE as f32) * 64. / self.env_sweep_pace as f32
         } else {
             0.
         };
@@ -64,7 +63,7 @@ impl Iterator for Wave {
         let sign = if (8. * 32768. / (SAMPLE_RATE as f32) * self.num_sample as f32
             / (2048. - self.period_value as f32))
             % 2.
-            > 1.
+            > 2. * self.duty
         {
             -1.
         } else {

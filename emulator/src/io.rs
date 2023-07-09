@@ -71,7 +71,7 @@ impl Memory {
             }
             0x14 => {
                 self.audio.ch1.period_value &= 0xff;
-                self.audio.ch1.period_value |= (((value & 0b111) as u16) << 8);
+                self.audio.ch1.period_value |= ((value & 0b111) as u16) << 8;
                 if value >> 7 == 1 {
                     self.audio.ch1.update();
                 }
@@ -86,7 +86,7 @@ impl Memory {
             }
             0x18 => {
                 self.audio.ch2.period_value &= 0xff;
-                self.audio.ch2.period_value |= (((value & 0b111) as u16) << 8);
+                self.audio.ch2.period_value |= ((value & 0b111) as u16) << 8;
                 if value >> 7 == 1 {
                     self.audio.ch1.update();
                 }

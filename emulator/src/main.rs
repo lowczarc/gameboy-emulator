@@ -6,11 +6,10 @@ pub mod opcodes;
 pub mod state;
 pub mod tests;
 
-use crate::audio::AudioChannel;
 use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
 use crate::state::{GBState, MemError};
+use std::env;
 use std::time::SystemTime;
-use std::{thread, time};
 
 pub fn exec_opcode(state: &mut GBState) -> Result<(), MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
@@ -31,8 +30,18 @@ pub fn exec_opcode(state: &mut GBState) -> Result<(), MemError> {
 }
 
 fn main() {
+    if env::args().len() != 2 {
+        println!("Usage: gameboy-emulator <rom.gb>");
+        return;
+    }
+
+    let rom = env::args().nth(1);
+
+    println!("Starting {:?}...", rom.clone().unwrap());
+
     let mut state = GBState::new();
-    state.mem.load_rom("/home/lancelot/tetris.bin").unwrap();
+
+    state.mem.load_rom(&rom.unwrap()).unwrap();
 
     let mut last_dt = SystemTime::now();
     loop {
