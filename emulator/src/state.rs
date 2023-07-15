@@ -88,11 +88,8 @@ pub struct Memory {
     boot_rom: [u8; 0x100],
     pub boot_rom_on: bool,
 
-    // 16 KiB ROM bank 00
-    rom_00: [u8; 0x4000],
-
-    // 16 KiB ROM bank 01
-    rom_01: [u8; 0x4000],
+    // 32 KiB ROM bank 00
+    rom: [u8; 0x8000],
 
     // 4 KiB Work RAM 00
     wram_00: [u8; 0x1000],
@@ -127,8 +124,7 @@ impl Memory {
         Self {
             boot_rom: [0; 0x100],
             boot_rom_on: true,
-            rom_00: [0; 0x4000],
-            rom_01: [0; 0x4000],
+            rom: [0; 0x8000],
             wram_00: [0; 0x1000],
             wram_01: [0; 0x1000],
             display,
@@ -149,7 +145,7 @@ impl Memory {
     pub fn load_rom(&mut self, file: &str) -> Result<(), std::io::Error> {
         let mut f = File::open(file)?;
 
-        f.read(&mut self.rom_00)?;
+        f.read(&mut self.rom)?;
 
         Ok(())
     }
@@ -157,10 +153,8 @@ impl Memory {
     pub fn r(&self, addr: u16) -> Result<u8, MemError> {
         if addr < 0x100 && self.boot_rom_on {
             Ok(self.boot_rom[addr as usize])
-        } else if addr < 0x4000 {
-            Ok(self.rom_00[addr as usize])
         } else if addr < 0x8000 {
-            Ok(self.rom_01[addr as usize - 0x4000])
+            Ok(self.rom[addr as usize])
         } else if addr >= 0xc000 && addr < 0xd000 {
             Ok(self.wram_00[addr as usize - 0xc000])
         } else if addr >= 0xd000 && addr < 0xe000 {
@@ -178,7 +172,7 @@ impl Memory {
                 "Trying to read at address 0x{:04x} which is unimplemented",
                 addr
             );
-            Err(MemError::Unimplemented)
+            Ok(0) //Err(MemError::Unimplemented)
         }
     }
 
@@ -186,11 +180,8 @@ impl Memory {
         if addr < 0x100 && self.boot_rom_on {
             self.boot_rom[addr as usize] = value;
             Ok(())
-        } else if addr < 0x4000 {
-            self.rom_00[addr as usize] = value;
-            Ok(())
         } else if addr < 0x8000 {
-            self.rom_01[addr as usize - 0x4000] = value;
+            self.rom[addr as usize] = value;
             Ok(())
         } else if addr >= 0xc000 && addr < 0xd000 {
             self.wram_00[addr as usize - 0xc000] = value;
@@ -212,7 +203,7 @@ impl Memory {
                 "Trying to write at address 0x{:04x} which is unimplemented",
                 addr
             );
-            Err(MemError::Unimplemented)
+            Ok(()) //Err(MemError::Unimplemented)
         }
     }
 }
@@ -220,6 +211,7 @@ impl Memory {
 pub struct GBState {
     pub cpu: CPU,
     pub mem: Memory,
+    pub ime: bool,
 }
 
 impl GBState {
@@ -231,6 +223,7 @@ impl GBState {
         Self {
             cpu: CPU::new(),
             mem,
+            ime: false,
         }
     }
 
@@ -257,11 +250,5 @@ impl GBState {
             panic!("r_i must be a 3 bits register input number")
         }
         Ok(())
-    }
-
-    pub fn update_display(&mut self) {
-        self.mem.display.cls();
-        self.mem.display.print_tile_map1();
-        self.mem.display.update();
     }
 }

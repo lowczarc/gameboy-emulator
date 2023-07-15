@@ -4,6 +4,7 @@ impl Memory {
     pub fn r_io(&self, addr: u8) -> u8 {
         match addr {
             0x00 => println!("READ Joypad"),
+            0x0f => println!("Write Interrupt flag"),
             0x11 => println!("READ Sound channel 1 length timer & duty cycle"),
             0x12 => println!("READ Sound channel 1 volume & envelope"),
             0x24 => println!("READ Master volume & VIN panning"),
@@ -12,8 +13,9 @@ impl Memory {
             0x40 => println!("READ LCD Control"),
             0x42 => (), // println!("READ Viewport Y Position"),
             0x43 => println!("READ Viewport X Position"),
-            0x44 => (), // println!("READ LCD Y Coordinate"),
+            0x44 => (), // println!("READ LCD Y Coordinate ({})", self.display.ly),
             0x47 => println!("READ BG palette data"),
+            0xff => println!("READ Interrupt enable"),
             _ => println!("Unknowned READ in IO register at address 0xff{:02x}", addr),
         }
 
@@ -41,6 +43,7 @@ impl Memory {
         );
         match addr {
             0x00 => println!("WRITE Joypad"),
+            0x0f => println!("Write Interrupt flag"),
             0x11 => println!("WRITE Sound channel 1 length timer & duty cycle"),
             0x12 => println!("WRITE Sound channel 1 volume & envelope"),
             0x13 => println!("WRITE Sound channel 1 period low"),
@@ -57,6 +60,7 @@ impl Memory {
             0x43 => println!("WRITE Viewport X Position"),
             0x47 => println!("WRITE BG palette data"),
             0x50 => println!("WRITE Unmount boot ROM "),
+            0xff => println!("Write Interrupt enable"),
             _ => println!("WRITE IDK Yet"),
         }
 
@@ -88,7 +92,7 @@ impl Memory {
                 self.audio.ch2.period_value &= 0xff;
                 self.audio.ch2.period_value |= ((value & 0b111) as u16) << 8;
                 if value >> 7 == 1 {
-                    self.audio.ch1.update();
+                    self.audio.ch2.update();
                 }
             }
             0x40 => self.display.lcdc = value,

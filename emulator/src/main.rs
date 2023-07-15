@@ -6,27 +6,27 @@ pub mod opcodes;
 pub mod state;
 pub mod tests;
 
-use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
 use crate::state::{GBState, MemError};
 use std::env;
-use std::time::SystemTime;
+use std::{thread, time};
 
-pub fn exec_opcode(state: &mut GBState) -> Result<(), MemError> {
+pub fn exec_opcode(state: &mut GBState, counter: u128) -> Result<u64, MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
+
+    //    println!("PC: {:04x}", state.cpu.pc);
+
     state.cpu.pc += 1;
 
     let n1 = (opcode >> 3) & 0b111;
     let n2 = opcode & 0b111;
 
     match opcode >> 6 {
-        0b00 => opcodes::op00(state, n1, n2)?,
-        0b01 => opcodes::op01(state, n1, n2)?,
-        0b10 => opcodes::op10(state, n1, n2)?,
-        0b11 => opcodes::op11(state, n1, n2)?,
+        0b00 => opcodes::op00(state, n1, n2),
+        0b01 => opcodes::op01(state, n1, n2),
+        0b10 => opcodes::op10(state, n1, n2),
+        0b11 => opcodes::op11(state, n1, n2),
         _ => panic!(),
     }
-
-    Ok(())
 }
 
 fn main() {
@@ -40,20 +40,19 @@ fn main() {
     println!("Starting {:?}...", rom.clone().unwrap());
 
     let mut state = GBState::new();
+    let mut counter = 0;
+    let mut cycles = 0;
 
     state.mem.load_rom(&rom.unwrap()).unwrap();
 
-    let mut last_dt = SystemTime::now();
     loop {
-        exec_opcode(&mut state).unwrap();
-        if SystemTime::now()
-            .duration_since(last_dt)
-            .unwrap()
-            .as_micros()
-            > DISPLAY_UPDATE_SLEEP_TIME_MICROS as u128
-        {
-            state.update_display();
-            last_dt = SystemTime::now();
+        cycles += exec_opcode(&mut state, counter).unwrap();
+
+        if (cycles > 100) {
+            thread::sleep(time::Duration::from_nanos(cycles / 100));
+            cycles = cycles % 100;
         }
+        state.mem.display.update_display();
+        counter += 1;
     }
 }
