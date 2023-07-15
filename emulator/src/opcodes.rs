@@ -354,6 +354,25 @@ pub fn add(state: &mut GBState, x: u8) {
     }
 }
 
+pub fn addhlrr(state: &mut GBState, rr: u8) {
+    let n = state.cpu.r16(rr);
+    let hl = state.cpu.r16(reg::HL);
+
+    cycles(8);
+
+    state.cpu.w16(reg::HL, (hl as i32 + n as i32) as u16);
+
+    state.cpu.r[reg::F as usize] &= !(flag::N | flag::H | flag::CY);
+
+    if (hl & 0xff) as i32 + n as i32 & !0xff != 0 {
+        state.cpu.r[reg::F as usize] |= flag::H;
+    }
+
+    if (hl as i32 + n as i32) & !0xffff != 0 {
+        state.cpu.r[reg::F as usize] |= flag::CY;
+    }
+}
+
 pub fn adc(state: &mut GBState, x: u8) {
     // ADD a number and the carry flag to A and store the result in A
     let carry = (state.cpu.r[reg::F as usize] & flag::CY) >> 4;
@@ -511,12 +530,85 @@ pub fn rr(state: &mut GBState, r_i: u8) -> Result<(), MemError> {
     state.w_reg(r_i, n)
 }
 
+pub fn sla(state: &mut GBState, r_i: u8) -> Result<(), MemError> {
+    // Shift left Arithmetic (b0=0) the input register
+    let mut n = state.r_reg(r_i)?;
+
+    state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
+    state.cpu.r[reg::F as usize] |= (n >> 7) << 4;
+    n <<= 1;
+
+    if n == 0 {
+        state.cpu.r[reg::F as usize] |= flag::ZF;
+    }
+
+    state.w_reg(r_i, n)
+}
+
+pub fn sra(state: &mut GBState, r_i: u8) -> Result<(), MemError> {
+    // Shift right Arithmetic (b7=b7) the input register
+    let mut n = state.r_reg(r_i)?;
+
+    state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
+    state.cpu.r[reg::F as usize] |= (n & 0b1) << 4;
+    let b7 = n & 0b10000000;
+    n >>= 1;
+    n |= b7;
+
+    if n == 0 {
+        state.cpu.r[reg::F as usize] |= flag::ZF;
+    }
+
+    state.w_reg(r_i, n)
+}
+
+pub fn swap(state: &mut GBState, r_i: u8) -> Result<(), MemError> {
+    // Swap the high nibble and low nibble
+    let mut n = state.r_reg(r_i)?;
+
+    let nibble_low = n & 0b1111;
+    let nibble_high = n >> 4;
+
+    state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
+
+    n = nibble_high | (nibble_low << 4);
+
+    if n == 0 {
+        state.cpu.r[reg::F as usize] |= flag::ZF;
+    }
+
+    state.w_reg(r_i, n)
+}
+
+pub fn srl(state: &mut GBState, r_i: u8) -> Result<(), MemError> {
+    // Shift right Logical (b7=0) the input register
+    let mut n = state.r_reg(r_i)?;
+
+    state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
+    state.cpu.r[reg::F as usize] |= (n & 0b1) << 4;
+    n >>= 1;
+
+    if n == 0 {
+        state.cpu.r[reg::F as usize] |= flag::ZF;
+    }
+
+    state.w_reg(r_i, n)
+}
+
 pub fn bit(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
     let z = (((state.r_reg(n2)? >> n1) & 1) ^ 1) << 7;
 
     state.cpu.r[reg::F as usize] &= !(flag::N | flag::ZF);
     state.cpu.r[reg::F as usize] |= flag::H | z;
     Ok(())
+}
+
+pub fn set(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
+    state.w_reg(n2, state.r_reg(n2)? | (1 << n1))
+}
+
+pub fn res(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
+    state.w_reg(n2, state.r_reg(n2)? & !(1 << n1))
 }
 
 pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
@@ -530,7 +622,7 @@ pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
             _ => jrcc8(state, n1),
         },
         0b001 => match n1 {
-            0b001 | 0b011 | 0b101 | 0b111 => todo!("ADD HL rr"),
+            0b001 | 0b011 | 0b101 | 0b111 => Ok(addhlrr(state, n1 >> 1)),
             0b000 | 0b010 | 0b100 | 0b110 => {
                 let p = r_16b_from_pc(state)?;
                 ldrr16(state, n1 >> 1, p);
@@ -627,7 +719,8 @@ pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
             _ => {
                 let p = pop(state)?;
                 cycles(12);
-                state.cpu.w16(n1 >> 1, p);
+                state.cpu.r[(n1 >> 1) as usize * 2 + 1] = (p & 0xff) as u8;
+                state.cpu.r[(n1 >> 1) as usize * 2] = (p >> 8) as u8;
                 Ok(())
             }
         },
@@ -666,7 +759,9 @@ pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<(), MemError> {
             0b011 | 0b101 | 0b111 => unimplemented!(),
             _ => {
                 cycles(16);
-                push(state, state.cpu.r16(n1 >> 1))
+                let value = state.cpu.r[(n1 >> 1) as usize * 2 + 1] as u16
+                    | ((state.cpu.r[(n1 >> 1) as usize * 2] as u16) << 8);
+                push(state, value)
             }
         },
         0b110 => {
@@ -697,7 +792,7 @@ pub fn op_bitwise(state: &mut GBState) -> Result<(), MemError> {
     let n2 = p & 0b111;
 
     cycles(8);
-    if n2 == 110 {
+    if n2 == 0b110 {
         cycles(8);
     }
     match opcode {
@@ -706,15 +801,15 @@ pub fn op_bitwise(state: &mut GBState) -> Result<(), MemError> {
             0b001 => rrc(state, n2),
             0b010 => rl(state, n2),
             0b011 => rr(state, n2),
-            0b100 => todo!("SLA"),
-            0b101 => todo!("SRA"),
-            0b110 => todo!("SWAP"),
-            0b111 => todo!("SRL"),
+            0b100 => sla(state, n2),
+            0b101 => sra(state, n2),
+            0b110 => swap(state, n2),
+            0b111 => srl(state, n2),
             _ => panic!(),
         },
         0b01 => bit(state, n1, n2),
-        0b10 => todo!("RES"),
-        0b11 => todo!("SET"),
+        0b10 => res(state, n1, n2),
+        0b11 => set(state, n1, n2),
         _ => panic!(),
     }
 }

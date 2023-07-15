@@ -56,7 +56,7 @@ impl Memory {
             0x42 => (), // println!("WRITE Viewport Y Position"),
             0x43 => println!("WRITE Viewport X Position"),
             0x47 => println!("WRITE BG palette data"),
-            0x50 => println!("WRITE BOOT LOCK"),
+            0x50 => println!("WRITE Unmount boot ROM "),
             _ => println!("WRITE IDK Yet"),
         }
 
