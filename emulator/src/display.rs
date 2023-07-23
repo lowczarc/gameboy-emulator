@@ -5,6 +5,8 @@ use std::time::SystemTime;
 
 const COLORS: [u32; 4] = [0x00e0f8d0, 0x0088c070, 0x346856, 0x00081820];
 
+const LINE_DOTS: u64 = 456;
+
 #[derive(Debug)]
 pub struct Display {
     window: Window,
@@ -12,13 +14,16 @@ pub struct Display {
 
     tiledata: [u8; 0x1800],
     tilemaps: [u8; 0x800],
+
     pub palette: u8,
     pub viewport_y: u8,
     pub viewport_x: u8,
     pub lcdc: u8,
     pub ly: u8,
+
     last_dt: SystemTime,
-    last_udt: SystemTime,
+
+    stat: u64,
 }
 
 impl Display {
@@ -34,7 +39,7 @@ impl Display {
             lcdc: 0,
             ly: 0,
             last_dt: SystemTime::now(),
-            last_udt: SystemTime::now(),
+            stat: 0,
         }
     }
 
@@ -105,22 +110,24 @@ impl Display {
         self.ly = (self.ly + 1) % 154;
     }
 
-    pub fn update_display(&mut self) {
-        if self.lcdc & 0b10000000 != 0 {
+    pub fn update_display(&mut self, cycles: u64) {
+        self.stat += cycles;
+        if self.lcdc & 0b10000000 != 0 && self.stat >= LINE_DOTS {
             self.print_tile_map1();
-            self.last_udt = SystemTime::now();
-            if self.ly == 153 {
-                // self.cls();
-                if SystemTime::now()
+            self.stat %= LINE_DOTS;
+            if self.ly == 0x90
+                && SystemTime::now()
                     .duration_since(self.last_dt)
                     .unwrap()
                     .as_micros()
                     > DISPLAY_UPDATE_SLEEP_TIME_MICROS as u128
-                {
-                    self.update();
-                    self.last_dt = SystemTime::now();
-                }
+            {
+                self.update();
+                self.last_dt = SystemTime::now();
             }
+        }
+        if self.lcdc & 0b10000000 == 0 {
+            self.ly = 0;
         }
     }
 }

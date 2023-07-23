@@ -10,10 +10,8 @@ use crate::state::{GBState, MemError};
 use std::env;
 use std::{thread, time};
 
-pub fn exec_opcode(state: &mut GBState, counter: u128) -> Result<u64, MemError> {
+pub fn exec_opcode(state: &mut GBState) -> Result<u64, MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
-
-    //    println!("PC: {:04x}", state.cpu.pc);
 
     state.cpu.pc += 1;
 
@@ -40,19 +38,24 @@ fn main() {
     println!("Starting {:?}...", rom.clone().unwrap());
 
     let mut state = GBState::new();
-    let mut counter = 0;
     let mut cycles = 0;
 
     state.mem.load_rom(&rom.unwrap()).unwrap();
 
     loop {
-        cycles += exec_opcode(&mut state, counter).unwrap();
+        let c = exec_opcode(&mut state).unwrap();
 
-        if (cycles > 100) {
-            thread::sleep(time::Duration::from_nanos(cycles / 100));
-            cycles = cycles % 100;
+        // The OS scheduler is not precise enough to sleep at every iteration.
+        // The workaround is to sleep every 1000 cycles and keep track of the
+        // remaining cycles.
+        if cycles >= 10000 {
+            thread::sleep(time::Duration::from_nanos(
+                cycles * consts::CPU_CYCLE_LENGTH_NANOS,
+            ));
+            cycles = 0;
         }
-        state.mem.display.update_display();
-        counter += 1;
+        cycles += c;
+
+        state.mem.display.update_display(c);
     }
 }

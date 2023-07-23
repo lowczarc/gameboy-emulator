@@ -168,10 +168,10 @@ impl Memory {
         } else if addr == 0xffff {
             Ok(0)
         } else {
-            println!(
-                "Trying to read at address 0x{:04x} which is unimplemented",
-                addr
-            );
+            // println!(
+            //     "Trying to read at address 0x{:04x} which is unimplemented",
+            //     addr
+            // );
             Ok(0) //Err(MemError::Unimplemented)
         }
     }
@@ -199,10 +199,10 @@ impl Memory {
         } else if addr == 0xffff {
             Ok(())
         } else {
-            println!(
-                "Trying to write at address 0x{:04x} which is unimplemented",
-                addr
-            );
+            // println!(
+            //     "Trying to write at address 0x{:04x} which is unimplemented",
+            //     addr
+            // );
             Ok(()) //Err(MemError::Unimplemented)
         }
     }

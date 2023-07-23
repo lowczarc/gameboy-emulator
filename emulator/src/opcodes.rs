@@ -1,6 +1,4 @@
-use crate::consts::CPU_CYCLE_LENGTH_NANOS;
 use crate::state::{flag, reg, GBState, MemError};
-use std::{thread, time};
 
 pub fn r_16b_from_pc(state: &mut GBState) -> Result<u16, MemError> {
     let p: u16 = state.mem.r(state.cpu.pc)? as u16 | ((state.mem.r(state.cpu.pc + 1)? as u16) << 8);
@@ -155,11 +153,15 @@ pub fn callcc(state: &mut GBState, n1: u8) -> Result<u64, MemError> {
 }
 
 pub fn ret(state: &mut GBState) -> Result<u64, MemError> {
-    state.cpu.pc = pop(state)?;
+    let res = pop(state)?;
 
-    if state.cpu.pc == 0 {
+    if res == 0 {
+        println!("DEBUG: {:?}", state.cpu);
         panic!("RET to start");
     }
+
+    state.cpu.pc = res;
+
     Ok(16)
 }
 
@@ -292,7 +294,7 @@ pub fn daa(state: &mut GBState) {
 
     if nibble_high > 9 && !sub_flag {
         state.cpu.r[reg::A as usize] += 0x60;
-        state.cpu.r[reg::F as usize] += flag::CY;
+        state.cpu.r[reg::F as usize] |= flag::CY;
     }
     if nibble_high > 9 && sub_flag {
         state.cpu.r[reg::A as usize] -= 0x60;
@@ -308,7 +310,7 @@ pub fn daa(state: &mut GBState) {
 
 pub fn cpl(state: &mut GBState) {
     // Flip all bits in register A
-    state.cpu.r[reg::F as usize] = state.cpu.r[reg::F as usize] & 0b10011111;
+    state.cpu.r[reg::F as usize] = state.cpu.r[reg::F as usize] | flag::N | flag::H;
     state.cpu.r[reg::A as usize] ^= 0xff;
 }
 
@@ -465,6 +467,8 @@ pub fn or(state: &mut GBState, x: u8) {
 
 pub fn cp(state: &mut GBState, x: u8) {
     // SUB a number to A and update the flags accordingly without updating A
+    state.cpu.r[reg::F as usize] &= !(flag::H | flag::N | flag::ZF | flag::CY);
+
     state.cpu.r[reg::F as usize] |= flag::N;
 
     if x & 0xf > state.cpu.r[reg::A as usize] & 0xf {
@@ -821,7 +825,7 @@ pub fn op_bitwise(state: &mut GBState) -> Result<u64, MemError> {
         0b10 => res(state, n1, n2),
         0b11 => set(state, n1, n2),
         _ => panic!(),
-    };
+    }?;
     if n2 == 0b110 {
         Ok(16)
     } else {
