@@ -717,7 +717,7 @@ pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<u64, MemError> {
         0b001 => match n1 {
             0b001 => ret(state),
             0b011 => {
-                state.ime = true;
+                state.mem.ime = true;
 
                 ret(state)
             }
@@ -756,11 +756,11 @@ pub fn op11(state: &mut GBState, n1: u8, n2: u8) -> Result<u64, MemError> {
             0b001 => op_bitwise(state), // Bitwise operations
             0b010 | 0b011 | 0b100 | 0b101 => unimplemented!(),
             0b110 => {
-                state.ime = false;
+                state.mem.ime = false;
                 Ok(4)
             }
             0b111 => {
-                state.ime = true;
+                state.mem.ime = true;
                 Ok(4)
             }
             _ => panic!(),

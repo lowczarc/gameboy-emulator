@@ -106,6 +106,10 @@ pub struct Memory {
     hram: [u8; 0x7f],
 
     pub audio: Audio,
+
+    pub ime: bool,
+
+    pub interrupts_register: u8,
 }
 
 #[derive(Debug)]
@@ -131,6 +135,8 @@ impl Memory {
             io: [0; 0x80],
             hram: [0; 0x7f],
             audio: Audio::new(),
+            ime: false,
+            interrupts_register: 0,
         }
     }
 
@@ -166,7 +172,7 @@ impl Memory {
         } else if addr >= 0xff80 && addr < 0xffff {
             Ok(self.hram[addr as usize - 0xff80])
         } else if addr == 0xffff {
-            Ok(0)
+            Ok(self.interrupts_register)
         } else {
             // println!(
             //     "Trying to read at address 0x{:04x} which is unimplemented",
@@ -197,6 +203,7 @@ impl Memory {
             self.hram[addr as usize - 0xff80] = value;
             Ok(())
         } else if addr == 0xffff {
+            self.interrupts_register = value;
             Ok(())
         } else {
             // println!(
@@ -211,7 +218,6 @@ impl Memory {
 pub struct GBState {
     pub cpu: CPU,
     pub mem: Memory,
-    pub ime: bool,
 }
 
 impl GBState {
@@ -223,7 +229,6 @@ impl GBState {
         Self {
             cpu: CPU::new(),
             mem,
-            ime: false,
         }
     }
 

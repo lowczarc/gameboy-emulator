@@ -1,6 +1,7 @@
 pub mod audio;
 pub mod consts;
 pub mod display;
+pub mod interrupts;
 pub mod io;
 pub mod opcodes;
 pub mod state;
@@ -46,7 +47,7 @@ fn main() {
         let c = exec_opcode(&mut state).unwrap();
 
         // The OS scheduler is not precise enough to sleep at every iteration.
-        // The workaround is to sleep every 1000 cycles and keep track of the
+        // The workaround is to sleep every 10000 cycles and keep track of the
         // remaining cycles.
         if cycles >= 10000 {
             thread::sleep(time::Duration::from_nanos(
@@ -56,6 +57,12 @@ fn main() {
         }
         cycles += c;
 
-        state.mem.display.update_display(c);
+        let vblank_interrupt = state.mem.display.update_display(c);
+
+        if vblank_interrupt {
+            state.mem.io[0x0f] |= 1;
+        }
+
+        state.check_interrupts().unwrap();
     }
 }

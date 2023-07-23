@@ -110,7 +110,8 @@ impl Display {
         self.ly = (self.ly + 1) % 154;
     }
 
-    pub fn update_display(&mut self, cycles: u64) {
+    pub fn update_display(&mut self, cycles: u64) -> bool {
+        let mut vblank_interrupt = false;
         self.stat += cycles;
         if self.lcdc & 0b10000000 != 0 && self.stat >= LINE_DOTS {
             self.print_tile_map1();
@@ -123,11 +124,14 @@ impl Display {
                     > DISPLAY_UPDATE_SLEEP_TIME_MICROS as u128
             {
                 self.update();
+                vblank_interrupt = true;
                 self.last_dt = SystemTime::now();
             }
         }
         if self.lcdc & 0b10000000 == 0 {
             self.ly = 0;
         }
+
+        return vblank_interrupt;
     }
 }
