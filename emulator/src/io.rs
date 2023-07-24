@@ -1,4 +1,4 @@
-use crate::state::Memory;
+use crate::state::{MemError, Memory};
 
 impl Memory {
     pub fn r_io(&self, addr: u8) -> u8 {
@@ -25,7 +25,9 @@ impl Memory {
             0x42 => self.display.viewport_y,
             0x43 => self.display.viewport_x,
             0x44 => self.display.ly,
-            0x47 => self.display.palette,
+            0x47 => self.display.bg_palette,
+            0x48 => self.display.obj_palettes[0],
+            0x49 => self.display.obj_palettes[1],
             0x50 => {
                 if self.boot_rom_on {
                     0xfe
@@ -37,7 +39,7 @@ impl Memory {
         }
     }
 
-    pub fn w_io(&mut self, addr: u8, value: u8) {
+    pub fn w_io(&mut self, addr: u8, value: u8) -> Result<(), MemError> {
         // println!(
         //     "Trying to write 0b{:08b} in IO register at address 0xff{:02x}",
         //     value, addr
@@ -99,9 +101,22 @@ impl Memory {
             0x40 => self.display.lcdc = value,
             0x42 => self.display.viewport_y = value,
             0x43 => self.display.viewport_x = value,
-            0x47 => self.display.palette = value,
+            0x46 => {
+                if value < 0xe0 {
+                    let addr = (value as u16) << 8;
+
+                    for i in 0..0xa0 {
+                        self.w(0xfe00 | i, self.r(addr | i)?)?;
+                    }
+                }
+            }
+            0x47 => self.display.bg_palette = value,
+            0x48 => self.display.obj_palettes[0] = value,
+            0x49 => self.display.obj_palettes[1] = value,
             0x50 => self.boot_rom_on = value & 1 == 0 && self.boot_rom_on,
             _ => self.io[addr as usize] = value,
         }
+
+        Ok(())
     }
 }

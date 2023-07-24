@@ -163,9 +163,11 @@ impl Memory {
             Ok(self.rom[addr as usize])
         } else if addr >= 0xc000 && addr < 0xd000 {
             Ok(self.wram_00[addr as usize - 0xc000])
+        } else if addr >= 0xe000 && addr < 0xf000 {
+            Ok(self.wram_00[addr as usize - 0xe000])
         } else if addr >= 0xd000 && addr < 0xe000 {
             Ok(self.wram_01[addr as usize - 0xd000])
-        } else if addr >= 0x8000 && addr < 0xa000 {
+        } else if (addr >= 0x8000 && addr < 0xa000) || (addr >= 0xfe00 && addr < 0xfea0) {
             self.display.r(addr & !0x8000)
         } else if addr >= 0xff00 && addr < 0xff80 {
             Ok(self.r_io((addr & 0xff) as u8))
@@ -192,13 +194,16 @@ impl Memory {
         } else if addr >= 0xc000 && addr < 0xd000 {
             self.wram_00[addr as usize - 0xc000] = value;
             Ok(())
+        } else if addr >= 0xe000 && addr < 0xf000 {
+            self.wram_00[addr as usize - 0xe000] = value;
+            Ok(())
         } else if addr >= 0xd000 && addr < 0xe000 {
             self.wram_01[addr as usize - 0xd000] = value;
             Ok(())
-        } else if addr >= 0x8000 && addr < 0xa000 {
+        } else if (addr >= 0x8000 && addr < 0xa000) || (addr >= 0xfe00 && addr < 0xfea0) {
             self.display.w(addr & !0x8000, value)
         } else if addr >= 0xff00 && addr < 0xff80 {
-            Ok(self.w_io((addr & 0xff) as u8, value))
+            Ok(self.w_io((addr & 0xff) as u8, value)?)
         } else if addr >= 0xff80 && addr < 0xffff {
             self.hram[addr as usize - 0xff80] = value;
             Ok(())
