@@ -109,6 +109,10 @@ pub struct Memory {
 
     pub ime: bool,
 
+    pub joypad_reg: u8,
+
+    pub joypad_is_action: bool,
+
     pub interrupts_register: u8,
 }
 
@@ -137,6 +141,8 @@ impl Memory {
             audio: Audio::new(),
             ime: false,
             interrupts_register: 0,
+            joypad_is_action: false,
+            joypad_reg: 0,
         }
     }
 

@@ -1,6 +1,6 @@
 use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
 use crate::state::MemError;
-use minifb::{Window, WindowOptions};
+use minifb::{KeyRepeat, Window, WindowOptions};
 use std::time::SystemTime;
 
 const COLORS: [u32; 4] = [0x00e0f8d0, 0x0088c070, 0x346856, 0x00081820];
@@ -171,7 +171,7 @@ impl Display {
                 continue;
             }
 
-            let l = y - self.ly;
+            let l = 8 - (y - self.ly);
 
             for b in (0..8).rev() {
                 let pxx = x as i32 + 7 - b as i32 - 8;

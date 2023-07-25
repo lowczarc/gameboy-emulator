@@ -1,12 +1,14 @@
 pub mod audio;
 pub mod consts;
 pub mod display;
+pub mod gamepad;
 pub mod interrupts;
 pub mod io;
 pub mod opcodes;
 pub mod state;
 pub mod tests;
 
+use crate::gamepad::Gamepad;
 use crate::state::{GBState, MemError};
 use std::env;
 use std::{thread, time};
@@ -36,6 +38,10 @@ fn main() {
 
     let rom = env::args().nth(1);
 
+    println!("Initializing Gamepad...");
+
+    let mut gamepad = Gamepad::new();
+
     println!("Starting {:?}...", rom.clone().unwrap());
 
     let mut state = GBState::new();
@@ -53,6 +59,13 @@ fn main() {
             thread::sleep(time::Duration::from_nanos(
                 cycles * consts::CPU_CYCLE_LENGTH_NANOS,
             ));
+            gamepad.update_events();
+
+            let action_button_reg = gamepad.get_action_gamepad_reg();
+            let direction_button_reg = gamepad.get_direction_gamepad_reg();
+
+            state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
+
             cycles = 0;
         }
         cycles += c;

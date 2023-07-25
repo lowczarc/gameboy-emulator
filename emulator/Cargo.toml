@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 minifb = "0.24"
 rodio = "0.17"
+gilrs = "0.10.2"
 
 [profile.dev]
 overflow-checks = false

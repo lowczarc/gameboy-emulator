@@ -20,7 +20,13 @@ impl Memory {
         // }
 
         match addr {
-            0x00 => 0x3f,
+            0x00 => {
+                if self.joypad_is_action {
+                    (self.joypad_reg >> 4) | 0b11010000
+                } else {
+                    (self.joypad_reg & 0xf) | 0b11100000
+                }
+            }
             0x40 => self.display.lcdc,
             0x42 => self.display.viewport_y,
             0x43 => self.display.viewport_x,
@@ -68,6 +74,9 @@ impl Memory {
         // }
 
         match addr {
+            0x00 => {
+                self.joypad_is_action = !value & 0b00100000 != 0;
+            }
             0x11 => {
                 self.audio.ch1.duty = value >> 6;
                 // TODO: Length timer
