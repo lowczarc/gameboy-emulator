@@ -192,10 +192,8 @@ impl Memory {
 
     pub fn w(&mut self, addr: u16, value: u8) -> Result<(), MemError> {
         if addr < 0x100 && self.boot_rom_on {
-            self.boot_rom[addr as usize] = value;
             Ok(())
         } else if addr < 0x8000 {
-            self.rom[addr as usize] = value;
             Ok(())
         } else if addr >= 0xc000 && addr < 0xd000 {
             self.wram_00[addr as usize - 0xc000] = value;
