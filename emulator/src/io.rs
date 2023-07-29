@@ -81,6 +81,11 @@ impl Memory {
                 self.audio.ch1.duty = value >> 6;
                 // TODO: Length timer
             }
+            0x12 => {
+                self.audio.ch1.initial_volume = value >> 4;
+                self.audio.ch1.env_direction = (value & 0xf) >> 3;
+                self.audio.ch1.sweep = value & 0b111;
+            }
             0x13 => {
                 self.audio.ch1.period_value &= 0xff00;
                 self.audio.ch1.period_value |= value as u16;
@@ -97,14 +102,35 @@ impl Memory {
                 // TODO: Length timer
             }
             0x17 => {
+                self.audio.ch2.initial_volume = value >> 4;
+                self.audio.ch2.env_direction = (value & 0xf) >> 3;
+                self.audio.ch2.sweep = value & 0b111;
+            }
+            0x18 => {
                 self.audio.ch2.period_value &= 0xff00;
                 self.audio.ch2.period_value |= value as u16;
             }
-            0x18 => {
+            0x19 => {
                 self.audio.ch2.period_value &= 0xff;
                 self.audio.ch2.period_value |= ((value & 0b111) as u16) << 8;
                 if value >> 7 == 1 {
                     self.audio.ch2.update();
+                }
+            }
+            0x1b => {
+                self.audio.ch3.duty = value >> 6;
+                // TODO: Length timer
+            }
+            0x1d => {
+                self.audio.ch3.period_value &= 0xff00;
+                self.audio.ch3.period_value |= value as u16;
+            }
+            0x1e => {
+                self.audio.ch3.period_value &= 0xff;
+                self.audio.ch3.period_value |= ((value & 0b111) as u16) << 8;
+                self.audio.ch3.period_value /= 2;
+                if value >> 7 == 1 {
+                    //self.audio.ch3.update(3);
                 }
             }
             0x40 => self.display.lcdc = value,

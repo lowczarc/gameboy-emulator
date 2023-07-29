@@ -4,6 +4,8 @@ use std::time::Duration;
 
 const SAMPLE_RATE: u32 = 50000;
 
+const SAMPLE_AVERAGING: usize = 10;
+
 #[derive(Clone, Debug)]
 pub struct Wave {
     period_value: u16,
@@ -60,17 +62,22 @@ impl Iterator for Wave {
             envelope
         };
 
-        let sign = if (8. * 32768. / (SAMPLE_RATE as f32) * self.num_sample as f32
-            / (2048. - self.period_value as f32))
-            % 2.
-            > 2. * self.duty
-        {
-            -1.
-        } else {
-            1.
-        };
+        let mut avg = 0.;
 
-        Some(sign * envelope_boundaries / 64.)
+        for n in 0..SAMPLE_AVERAGING {
+            avg += if (8. * 32768. / (SAMPLE_RATE as f32)
+                * (self.num_sample + n - (SAMPLE_AVERAGING / 2)) as f32
+                / (2048. - self.period_value as f32))
+                % 2.
+                > 2. * self.duty
+            {
+                -1.
+            } else {
+                1.
+            };
+        }
+
+        Some((avg / SAMPLE_AVERAGING as f32) * envelope_boundaries / 64.)
     }
 }
 
@@ -98,6 +105,9 @@ pub struct AudioChannel {
     pub on: bool,
     pub period_value: u16,
     pub duty: u8,
+    pub initial_volume: u8,
+    pub env_direction: u8,
+    pub sweep: u8,
 }
 
 impl AudioChannel {
@@ -110,13 +120,23 @@ impl AudioChannel {
             on: true,
             period_value: 0,
             duty: 0,
+            initial_volume: 0,
+            env_direction: 0,
+            sweep: 0,
         }
     }
 
     pub fn update(&mut self) {
         if self.on {
             self.sink.stop();
-            let source = Wave::new(self.period_value, self.duty, 0xf, 0, 3).amplify(0.25);
+            let source = Wave::new(
+                self.period_value,
+                self.duty,
+                self.initial_volume,
+                self.env_direction,
+                self.sweep,
+            )
+            .amplify(0.25);
             self.sink.append(source);
         } else {
             self.sink.stop();
@@ -127,6 +147,7 @@ impl AudioChannel {
 pub struct Audio {
     pub ch1: AudioChannel,
     pub ch2: AudioChannel,
+    pub ch3: AudioChannel,
 }
 
 impl Audio {
@@ -134,6 +155,7 @@ impl Audio {
         Self {
             ch1: AudioChannel::new(),
             ch2: AudioChannel::new(),
+            ch3: AudioChannel::new(),
         }
     }
 }
