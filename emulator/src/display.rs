@@ -1,6 +1,6 @@
 use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
 use crate::state::MemError;
-use minifb::{KeyRepeat, Window, WindowOptions};
+use minifb::{Window, WindowOptions};
 use std::time::SystemTime;
 
 const COLORS: [u32; 4] = [0x00e0f8d0, 0x0088c070, 0x346856, 0x00081820];
@@ -164,7 +164,7 @@ impl Display {
             let y = self.oam[o * 4];
             let x = self.oam[o * 4 + 1];
             let tile = self.oam[o * 4 + 2];
-            let opts = self.oam[o * 4 + 3];
+            let _opts = self.oam[o * 4 + 3];
             let tile_pointer = ((tile as u16) << 4) as usize;
 
             if y < self.ly || y >= self.ly + 8 {

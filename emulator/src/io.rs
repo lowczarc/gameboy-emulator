@@ -27,6 +27,7 @@ impl Memory {
                     (self.joypad_reg & 0xf) | 0b11100000
                 }
             }
+            0x04 => self.div,
             0x40 => self.display.lcdc,
             0x42 => self.display.viewport_y,
             0x43 => self.display.viewport_x,
@@ -76,6 +77,9 @@ impl Memory {
         match addr {
             0x00 => {
                 self.joypad_is_action = !value & 0b00100000 != 0;
+            }
+            0x04 => {
+                self.div = 0;
             }
             0x11 => {
                 self.audio.ch1.duty = value >> 6;

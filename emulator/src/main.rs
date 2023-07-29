@@ -11,7 +11,7 @@ pub mod tests;
 use crate::gamepad::Gamepad;
 use crate::state::{GBState, MemError};
 use std::env;
-use std::{thread, time, time::SystemTime};
+use std::time::SystemTime;
 
 pub fn exec_opcode(state: &mut GBState) -> Result<u64, MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
@@ -66,7 +66,7 @@ fn main() {
         {}
         last_dt = SystemTime::now();
 
-        if cycles >= 10000 {
+        if cycles >= 256 {
             // One workaround for the previous problem is to sleep every 10000 cycles
             // and keep track of the remaining cycles. It's way less precise than the
             // previous solution but it will save your battery:
@@ -79,6 +79,8 @@ fn main() {
             let direction_button_reg = gamepad.get_direction_gamepad_reg();
 
             state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
+
+            state.mem.div += 1;
 
             cycles = 0;
         }

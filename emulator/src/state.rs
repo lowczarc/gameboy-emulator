@@ -109,6 +109,8 @@ pub struct Memory {
 
     pub ime: bool,
 
+    pub div: u8,
+
     pub joypad_reg: u8,
 
     pub joypad_is_action: bool,
@@ -143,6 +145,7 @@ impl Memory {
             interrupts_register: 0,
             joypad_is_action: false,
             joypad_reg: 0,
+            div: 0,
         }
     }
 

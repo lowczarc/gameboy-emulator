@@ -1,4 +1,4 @@
-use gilrs::{Button, Event, GamepadId, Gilrs};
+use gilrs::{Button, GamepadId, Gilrs};
 
 pub struct Gamepad {
     gilrs: Gilrs,
@@ -7,9 +7,9 @@ pub struct Gamepad {
 
 impl Gamepad {
     pub fn new() -> Self {
-        let mut gilrs = Gilrs::new().unwrap();
+        let gilrs = Gilrs::new().unwrap();
 
-        let gamepad_id = if let Some((gamepad_id, gamepad)) = gilrs.gamepads().next() {
+        let gamepad_id = if let Some((gamepad_id, _gamepad)) = gilrs.gamepads().next() {
             println!("Found Gamepad id: {:?}", gamepad_id);
             Some(gamepad_id)
         } else {
