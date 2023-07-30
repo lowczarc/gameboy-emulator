@@ -292,6 +292,8 @@ pub fn daa(state: &mut GBState) {
         state.cpu.r[reg::A as usize] -= 0x06;
     }
 
+    state.cpu.r[reg::F as usize] &= !(flag::CY | flag::ZF);
+
     if nibble_high > 9 && !sub_flag {
         state.cpu.r[reg::A as usize] += 0x60;
         state.cpu.r[reg::F as usize] |= flag::CY;

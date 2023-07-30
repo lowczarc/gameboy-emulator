@@ -77,8 +77,8 @@ impl CPU {
         match flag {
             flag::NZ => f >> 7 == 0,
             flag::Z => f >> 7 == 1,
-            flag::NC => f >> 4 == 0,
-            flag::C => f >> 4 == 1,
+            flag::NC => (f >> 4) & 1 == 0,
+            flag::C => (f >> 4) & 1 == 1,
             _ => unimplemented!(),
         }
     }
@@ -230,6 +230,7 @@ impl Memory {
 pub struct GBState {
     pub cpu: CPU,
     pub mem: Memory,
+    pub is_debug: bool,
 }
 
 impl GBState {
@@ -241,6 +242,7 @@ impl GBState {
         Self {
             cpu: CPU::new(),
             mem,
+            is_debug: false,
         }
     }
 
@@ -267,5 +269,11 @@ impl GBState {
             panic!("r_i must be a 3 bits register input number")
         }
         Ok(())
+    }
+
+    pub fn debug(&self, s: &str) -> () {
+        if self.is_debug {
+            println!("{}", s);
+        }
     }
 }
