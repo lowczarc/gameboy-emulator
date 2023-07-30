@@ -175,7 +175,7 @@ impl Memory {
             _ => self.io[addr as usize] = value,
         }
 
-        if (addr >= 0x30 && addr <= 0x3f) {
+        if addr >= 0x30 && addr <= 0x3f {
             let i = (addr - 0x30) as usize;
             self.audio.ch3.wave_pattern[i * 2] = value >> 4;
             self.audio.ch3.wave_pattern[i * 2 + 1] = value & 0xf;

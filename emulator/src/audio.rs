@@ -148,7 +148,7 @@ impl Iterator for MutableWave {
         let mut res = 0.;
 
         if let Ok(mut wave_o) = self.wave_ch1.lock() {
-            if let Some(mut wave) = wave_o.as_mut() {
+            if let Some(wave) = wave_o.as_mut() {
                 if let Some(result) = wave.next() {
                     res += result / 4.;
                 }
@@ -156,7 +156,7 @@ impl Iterator for MutableWave {
         }
 
         if let Ok(mut wave_o) = self.wave_ch2.lock() {
-            if let Some(mut wave) = wave_o.as_mut() {
+            if let Some(wave) = wave_o.as_mut() {
                 if let Some(result) = wave.next() {
                     res += result / 4.;
                 }
@@ -164,7 +164,7 @@ impl Iterator for MutableWave {
         }
 
         if let Ok(mut wave_o) = self.wave_ch3.lock() {
-            if let Some(mut wave) = wave_o.as_mut() {
+            if let Some(wave) = wave_o.as_mut() {
                 if let Some(result) = wave.next() {
                     res += result / 4.;
                 }
@@ -285,7 +285,7 @@ impl AudioCustomChannel {
 
 pub struct Audio {
     _stream: OutputStream,
-    sink: Sink,
+    _sink: Sink,
 
     pub ch1: AudioSquareChannel,
     pub ch2: AudioSquareChannel,
@@ -310,7 +310,7 @@ impl Audio {
 
         Self {
             _stream: stream,
-            sink,
+            _sink: sink,
 
             ch1: AudioSquareChannel::new(wave_ch1),
             ch2: AudioSquareChannel::new(wave_ch2),
