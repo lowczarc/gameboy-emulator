@@ -171,11 +171,11 @@ impl Display {
                 continue;
             }
 
-            let l = 8 - (y - self.ly);
+            let l = 7 - (y - self.ly);
 
             for b in (0..8).rev() {
                 let pxx = x as i32 + 7 - b as i32 - 8;
-                let pxy = self.ly as i32 - 8;
+                let pxy = self.ly as i32 - 9;
 
                 let data = (((self.tiledata[tile_pointer + l as usize * 2] as u8) >> b) & 1)
                     | ((((self.tiledata[tile_pointer + l as usize * 2 + 1] as u8) >> b) & 1) << 1);

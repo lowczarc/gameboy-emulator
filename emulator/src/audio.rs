@@ -1,16 +1,45 @@
 use rodio::{OutputStream, Sink, Source};
 
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-const SAMPLE_RATE: u32 = 50000;
+const SAMPLE_RATE: u32 = 65536;
 
-const SAMPLE_AVERAGING: usize = 10;
+const SAMPLE_AVERAGING: usize = 20;
+
+const SQUARE_WAVE_PATTERN_DUTY_0: [u8; 32] = [
+    0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+    0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0, 0, 0, 0,
+];
+
+const SQUARE_WAVE_PATTERN_DUTY_1: [u8; 32] = [
+    0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+    0xf, 0xf, 0xf, 0xf, 0xf, 0, 0, 0, 0, 0, 0, 0, 0,
+];
+
+const SQUARE_WAVE_PATTERN_DUTY_2: [u8; 32] = [
+    0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
+
+const SQUARE_WAVE_PATTERN_DUTY_3: [u8; 32] = [
+    0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,
+];
+
+const SQUARE_WAVE_PATTERNS: [[u8; 32]; 4] = [
+    SQUARE_WAVE_PATTERN_DUTY_0,
+    SQUARE_WAVE_PATTERN_DUTY_1,
+    SQUARE_WAVE_PATTERN_DUTY_2,
+    SQUARE_WAVE_PATTERN_DUTY_3,
+];
 
 #[derive(Clone, Debug)]
 pub struct Wave {
     period_value: u16,
     num_sample: usize,
-    duty: f32,
+    wave_pattern: [u8; 32],
+    length_timer: Option<u8>,
 
     env_initial_volume: f32,
     env_direction: f32,
@@ -20,18 +49,20 @@ pub struct Wave {
 impl Wave {
     pub fn new(
         period_value: u16,
-        duty: u8,
+        wave_pattern: [u8; 32],
         env_initial_volume: u8,
         env_direction: u8,
         env_sweep_pace: u8,
+        length_timer: Option<u8>,
     ) -> Wave {
         Wave {
             period_value,
             num_sample: 0,
-            duty: [0.125, 0.25, 0.5, 0.75][duty as usize],
+            wave_pattern,
             env_initial_volume: env_initial_volume as f32,
             env_direction: if env_direction == 0 { -1. } else { 1. },
             env_sweep_pace,
+            length_timer,
         }
     }
 }
@@ -44,6 +75,14 @@ impl Iterator for Wave {
 
         if self.period_value == 0 {
             return None;
+        }
+
+        if let Some(length_timer) = self.length_timer {
+            if length_timer < 64
+                && SAMPLE_RATE * (64 - length_timer as u32) / 256 < self.num_sample as u32
+            {
+                return None;
+            }
         }
 
         let envelope_time = if self.env_sweep_pace != 0 {
@@ -65,23 +104,78 @@ impl Iterator for Wave {
         let mut avg = 0.;
 
         for n in 0..SAMPLE_AVERAGING {
-            avg += if (8. * 32768. / (SAMPLE_RATE as f32)
-                * (self.num_sample + n - (SAMPLE_AVERAGING / 2)) as f32
-                / (2048. - self.period_value as f32))
-                % 2.
-                > 2. * self.duty
-            {
-                -1.
-            } else {
-                1.
-            };
+            if self.num_sample as i32 + n as i32 - SAMPLE_AVERAGING as i32 >= 0 {
+                avg += (self.wave_pattern[(((8. * 32768. / (SAMPLE_RATE as f32)
+                    * (self.num_sample + n - (SAMPLE_AVERAGING / 2)) as f32
+                    / self.period_value as f32)
+                    * 16.)
+                    % 32.) as u8 as usize] as f32
+                    * 2.
+                    - 16.)
+                    / 16.;
+            }
         }
 
         Some((avg / SAMPLE_AVERAGING as f32) * envelope_boundaries / 64.)
     }
 }
 
-impl Source for Wave {
+#[derive(Clone, Debug)]
+struct MutableWave {
+    wave_ch1: Arc<Mutex<Option<Wave>>>,
+    wave_ch2: Arc<Mutex<Option<Wave>>>,
+    wave_ch3: Arc<Mutex<Option<Wave>>>,
+}
+
+impl MutableWave {
+    pub fn new(
+        wave_ch1: Arc<Mutex<Option<Wave>>>,
+        wave_ch2: Arc<Mutex<Option<Wave>>>,
+        wave_ch3: Arc<Mutex<Option<Wave>>>,
+    ) -> Self {
+        Self {
+            wave_ch1,
+            wave_ch2,
+            wave_ch3,
+        }
+    }
+}
+
+impl Iterator for MutableWave {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<f32> {
+        let mut res = 0.;
+
+        if let Ok(mut wave_o) = self.wave_ch1.lock() {
+            if let Some(mut wave) = wave_o.as_mut() {
+                if let Some(result) = wave.next() {
+                    res += result / 4.;
+                }
+            }
+        }
+
+        if let Ok(mut wave_o) = self.wave_ch2.lock() {
+            if let Some(mut wave) = wave_o.as_mut() {
+                if let Some(result) = wave.next() {
+                    res += result / 4.;
+                }
+            }
+        }
+
+        if let Ok(mut wave_o) = self.wave_ch3.lock() {
+            if let Some(mut wave) = wave_o.as_mut() {
+                if let Some(result) = wave.next() {
+                    res += result / 4.;
+                }
+            }
+        }
+
+        Some(res)
+    }
+}
+
+impl Source for MutableWave {
     fn current_frame_len(&self) -> Option<usize> {
         None
     }
@@ -99,9 +193,10 @@ impl Source for Wave {
     }
 }
 
-pub struct AudioChannel {
-    _stream: OutputStream,
-    sink: Sink,
+pub struct AudioSquareChannel {
+    wave: Arc<Mutex<Option<Wave>>>,
+
+    pub length_timer: Option<u8>,
     pub on: bool,
     pub period_value: u16,
     pub duty: u8,
@@ -110,52 +205,116 @@ pub struct AudioChannel {
     pub sweep: u8,
 }
 
-impl AudioChannel {
-    pub fn new() -> Self {
-        let (stream, stream_handle) = OutputStream::try_default().unwrap();
-
+impl AudioSquareChannel {
+    pub fn new(wave: Arc<Mutex<Option<Wave>>>) -> Self {
         Self {
-            _stream: stream,
-            sink: Sink::try_new(&stream_handle).unwrap(),
             on: true,
             period_value: 0,
             duty: 0,
             initial_volume: 0,
             env_direction: 0,
             sweep: 0,
+            wave,
+            length_timer: None,
         }
     }
 
     pub fn update(&mut self) {
-        if self.on {
-            self.sink.stop();
-            let source = Wave::new(
-                self.period_value,
-                self.duty,
-                self.initial_volume,
-                self.env_direction,
-                self.sweep,
-            )
-            .amplify(0.25);
-            self.sink.append(source);
-        } else {
-            self.sink.stop();
+        if let Ok(mut wave) = self.wave.lock() {
+            if self.on {
+                *wave = Some(Wave::new(
+                    2048 - self.period_value,
+                    SQUARE_WAVE_PATTERNS[self.duty as usize],
+                    self.initial_volume,
+                    self.env_direction,
+                    self.sweep,
+                    self.length_timer,
+                ));
+            } else {
+                *wave = None;
+            }
+        }
+    }
+}
+
+pub struct AudioCustomChannel {
+    wave: Arc<Mutex<Option<Wave>>>,
+
+    pub length_timer: Option<u8>,
+    pub wave_pattern: [u8; 32],
+    pub on: bool,
+    pub period_value: u16,
+    pub duty: u8,
+    pub initial_volume: u8,
+    pub env_direction: u8,
+    pub sweep: u8,
+}
+
+impl AudioCustomChannel {
+    pub fn new(wave: Arc<Mutex<Option<Wave>>>) -> Self {
+        Self {
+            wave_pattern: [0; 32],
+            on: true,
+            period_value: 0,
+            duty: 0,
+            initial_volume: 0,
+            env_direction: 0,
+            sweep: 0,
+            wave,
+            length_timer: None,
+        }
+    }
+
+    pub fn update(&mut self) {
+        if let Ok(mut wave) = self.wave.lock() {
+            if self.on {
+                *wave = Some(Wave::new(
+                    2 * (2048 - (self.period_value * 2)),
+                    self.wave_pattern,
+                    self.initial_volume,
+                    self.env_direction,
+                    self.sweep,
+                    self.length_timer,
+                ));
+            } else {
+                *wave = None;
+            }
         }
     }
 }
 
 pub struct Audio {
-    pub ch1: AudioChannel,
-    pub ch2: AudioChannel,
-    pub ch3: AudioChannel,
+    _stream: OutputStream,
+    sink: Sink,
+
+    pub ch1: AudioSquareChannel,
+    pub ch2: AudioSquareChannel,
+    pub ch3: AudioCustomChannel,
 }
 
 impl Audio {
     pub fn new() -> Self {
+        let (stream, stream_handle) = OutputStream::try_default().unwrap();
+
+        let sink = Sink::try_new(&stream_handle).unwrap();
+
+        let wave_ch1 = Arc::new(Mutex::new(None));
+        let wave_ch2 = Arc::new(Mutex::new(None));
+        let wave_ch3 = Arc::new(Mutex::new(None));
+
+        sink.append(MutableWave::new(
+            wave_ch1.clone(),
+            wave_ch2.clone(),
+            wave_ch3.clone(),
+        ));
+
         Self {
-            ch1: AudioChannel::new(),
-            ch2: AudioChannel::new(),
-            ch3: AudioChannel::new(),
+            _stream: stream,
+            sink,
+
+            ch1: AudioSquareChannel::new(wave_ch1),
+            ch2: AudioSquareChannel::new(wave_ch2),
+            ch3: AudioCustomChannel::new(wave_ch3),
         }
     }
 }

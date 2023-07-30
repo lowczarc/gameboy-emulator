@@ -83,7 +83,11 @@ impl Memory {
             }
             0x11 => {
                 self.audio.ch1.duty = value >> 6;
-                // TODO: Length timer
+                if value & 0b111111 != 0 {
+                    self.audio.ch1.length_timer = Some(value & 0b111111);
+                } else {
+                    self.audio.ch1.length_timer = None;
+                }
             }
             0x12 => {
                 self.audio.ch1.initial_volume = value >> 4;
@@ -103,7 +107,11 @@ impl Memory {
             }
             0x16 => {
                 self.audio.ch2.duty = value >> 6;
-                // TODO: Length timer
+                if value & 0b111111 != 0 {
+                    self.audio.ch2.length_timer = Some(value & 0b111111);
+                } else {
+                    self.audio.ch2.length_timer = None;
+                }
             }
             0x17 => {
                 self.audio.ch2.initial_volume = value >> 4;
@@ -122,8 +130,19 @@ impl Memory {
                 }
             }
             0x1b => {
-                self.audio.ch3.duty = value >> 6;
-                // TODO: Length timer
+                if value < 64 {
+                    self.audio.ch3.length_timer = Some(value);
+                } else {
+                    self.audio.ch3.length_timer = None;
+                }
+            }
+            0x1c => {
+                let s = (value >> 5) & 0b11;
+                if s == 0 {
+                    self.audio.ch3.initial_volume = 0;
+                } else {
+                    self.audio.ch3.initial_volume = 0xf >> (s - 1);
+                }
             }
             0x1d => {
                 self.audio.ch3.period_value &= 0xff00;
@@ -134,7 +153,7 @@ impl Memory {
                 self.audio.ch3.period_value |= ((value & 0b111) as u16) << 8;
                 self.audio.ch3.period_value /= 2;
                 if value >> 7 == 1 {
-                    //self.audio.ch3.update(3);
+                    self.audio.ch3.update();
                 }
             }
             0x40 => self.display.lcdc = value,
@@ -154,6 +173,12 @@ impl Memory {
             0x49 => self.display.obj_palettes[1] = value,
             0x50 => self.boot_rom_on = value & 1 == 0 && self.boot_rom_on,
             _ => self.io[addr as usize] = value,
+        }
+
+        if (addr >= 0x30 && addr <= 0x3f) {
+            let i = (addr - 0x30) as usize;
+            self.audio.ch3.wave_pattern[i * 2] = value >> 4;
+            self.audio.ch3.wave_pattern[i * 2 + 1] = value & 0xf;
         }
 
         Ok(())
