@@ -14,7 +14,7 @@ In exactly the same way as the [Chip8 emulator](https://github.com/lowczarc/chip
 - `emulator/` - This contains the main Gameboy emulator. You'll find all of the necessary files and the core logic inside this folder.
 - `asm/` - This is an assembler for the Gameboy, written in Python 🐍.
 
-After doing it twice, I would recommend to do it this way if you plan to do an emulator: start with the assembler and then start to write the emulator. You will have a better understanding of the capabilities of the CPU and will already have a good idea for how the opcodes are structured.
+After doing it twice, I would recommend to do it this way if you plan to write an emulator: start with the assembler before writing the emulator. You will have a better understanding of the capabilities of the CPU and will already have a good idea for how the opcodes are structured.
 
 ## 🚀 Getting started
 
@@ -41,7 +41,7 @@ python main.py <gbasm_input> <rom_output>
 
 ## 📝 License
 
-This project is licensed under the "Nintendo I love you please don't sue me" license
+This project is licensed under the "I love you Nintendo please don't sue me" license
 
 ## 📚 References
 
