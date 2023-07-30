@@ -12,6 +12,7 @@ use crate::gamepad::Gamepad;
 use crate::state::{GBState, MemError};
 use std::env;
 use std::time::SystemTime;
+use std::{time, thread};
 
 pub fn exec_opcode(state: &mut GBState) -> Result<u64, MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
@@ -48,31 +49,14 @@ fn main() {
     let mut cycles = 0;
 
     state.mem.load_rom(&rom.unwrap()).unwrap();
-    let mut last_dt = SystemTime::now();
+    let mut nanos_sleep: i128 = 0;
 
     loop {
+        let now = SystemTime::now();
         let c = exec_opcode(&mut state).unwrap();
 
-        // The OS scheduler is not precise enough to sleep at every iteration.
-        // Instead of using thread::sleep, we create a loop that checks the
-        // current time every iteration.
-        // Of course it's taking 100% of the CPU so feel free to comment it out
-        // and use the thread::sleep version if on battery.
-        while SystemTime::now()
-            .duration_since(last_dt)
-            .unwrap()
-            .as_nanos()
-            < c as u128 * consts::CPU_CYCLE_LENGTH_NANOS as u128
-        {}
-        last_dt = SystemTime::now();
-
         if cycles >= 256 {
-            // One workaround for the previous problem is to sleep every 10000 cycles
-            // and keep track of the remaining cycles. It's way less precise than the
-            // previous solution but it will save your battery:
-            // thread::sleep(time::Duration::from_nanos(
-            //     cycles * consts::CPU_CYCLE_LENGTH_NANOS,
-            // ));
+
             gamepad.update_events();
 
             let action_button_reg = gamepad.get_action_gamepad_reg();
@@ -93,5 +77,18 @@ fn main() {
         }
 
         state.check_interrupts().unwrap();
+
+        nanos_sleep += c as i128 * consts::CPU_CYCLE_LENGTH_NANOS as i128;
+
+        if nanos_sleep > 0 {
+            thread::sleep(time::Duration::from_nanos(
+                nanos_sleep as u64,
+            ));
+
+            nanos_sleep = nanos_sleep - SystemTime::now()
+             .duration_since(now)
+             .unwrap()
+             .as_nanos() as i128;
+        }
     }
 }
