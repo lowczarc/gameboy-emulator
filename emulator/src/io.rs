@@ -83,11 +83,11 @@ impl Memory {
             }
             0x11 => {
                 self.audio.ch1.duty = value >> 6;
-                if value & 0b111111 != 0 {
-                    self.audio.ch1.length_timer = Some(value & 0b111111);
-                } else {
-                    self.audio.ch1.length_timer = None;
-                }
+                // if value & 0b111111 != 0 {
+                //     self.audio.ch1.length_timer = Some(value & 0b111111);
+                // } else {
+                //     self.audio.ch1.length_timer = None;
+                // }
             }
             0x12 => {
                 self.audio.ch1.initial_volume = value >> 4;
@@ -107,11 +107,11 @@ impl Memory {
             }
             0x16 => {
                 self.audio.ch2.duty = value >> 6;
-                if value & 0b111111 != 0 {
-                    self.audio.ch2.length_timer = Some(value & 0b111111);
-                } else {
-                    self.audio.ch2.length_timer = None;
-                }
+                // if value & 0b111111 != 0 {
+                //     self.audio.ch2.length_timer = Some(value & 0b111111);
+                // } else {
+                //     self.audio.ch2.length_timer = None;
+                // }
             }
             0x17 => {
                 self.audio.ch2.initial_volume = value >> 4;

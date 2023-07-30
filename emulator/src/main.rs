@@ -16,6 +16,10 @@ use std::time::SystemTime;
 pub fn exec_opcode(state: &mut GBState) -> Result<u64, MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
 
+    state.is_debug = false;
+    if (state.cpu.pc >= 0x0166 && state.cpu.pc <= 0x017d) {
+        state.is_debug = true;
+    }
     state.cpu.pc += 1;
 
     let n1 = (opcode >> 3) & 0b111;

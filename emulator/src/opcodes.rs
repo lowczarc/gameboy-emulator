@@ -281,7 +281,6 @@ pub fn daa(state: &mut GBState) {
     // Decimal Adjust Accumulator
     // Adjust the A register after a addition or substraction to keep valid BCD representation
     let nibble_low = state.cpu.r[reg::A as usize] & 0b1111;
-    let nibble_high = state.cpu.r[reg::A as usize] >> 4;
     let sub_flag = (state.cpu.r[reg::F as usize] & flag::N) != 0;
     let half_carry_flag = (state.cpu.r[reg::F as usize] & flag::H) != 0;
 
@@ -291,6 +290,8 @@ pub fn daa(state: &mut GBState) {
     if (half_carry_flag || nibble_low > 9) && sub_flag {
         state.cpu.r[reg::A as usize] -= 0x06;
     }
+
+    let nibble_high = state.cpu.r[reg::A as usize] >> 4;
 
     state.cpu.r[reg::F as usize] &= !(flag::CY | flag::ZF);
 
@@ -337,8 +338,6 @@ pub fn add(state: &mut GBState, x: u8) {
     // ADD a number to A and store the result in A
     let res = x as u16 + state.cpu.r[reg::A as usize] as u16;
 
-    state.cpu.r[reg::A as usize] = res as u8;
-
     state.cpu.r[reg::F as usize] = 0;
 
     if (x & 0xf) + (state.cpu.r[reg::A as usize] & 0xf) > 0xf {
@@ -348,6 +347,8 @@ pub fn add(state: &mut GBState, x: u8) {
     if res > 0xff {
         state.cpu.r[reg::F as usize] |= flag::CY;
     }
+
+    state.cpu.r[reg::A as usize] = res as u8;
 
     if state.cpu.r[reg::A as usize] == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
@@ -378,8 +379,6 @@ pub fn adc(state: &mut GBState, x: u8) {
     let carry = (state.cpu.r[reg::F as usize] & flag::CY) >> 4;
     let res = x as u16 + state.cpu.r[reg::A as usize] as u16 + carry as u16;
 
-    state.cpu.r[reg::A as usize] = res as u8;
-
     state.cpu.r[reg::F as usize] = 0;
 
     if (x & 0xf) + ((state.cpu.r[reg::A as usize] & 0xf) + carry) > 0xf {
@@ -389,6 +388,8 @@ pub fn adc(state: &mut GBState, x: u8) {
     if res > 0xff {
         state.cpu.r[reg::F as usize] |= flag::CY;
     }
+
+    state.cpu.r[reg::A as usize] = res as u8;
 
     if state.cpu.r[reg::A as usize] == 0 {
         state.cpu.r[reg::F as usize] |= flag::ZF;
