@@ -88,8 +88,10 @@ pub struct Memory {
     boot_rom: [u8; 0x100],
     pub boot_rom_on: bool,
 
+    pub rom_bank: u8,
+
     // 32 KiB ROM bank 00
-    rom: [u8; 0x8000],
+    rom: [u8; 0x200000],
 
     // 4 KiB Work RAM 00
     wram_00: [u8; 0x1000],
@@ -144,7 +146,8 @@ impl Memory {
         Self {
             boot_rom: [0; 0x100],
             boot_rom_on: true,
-            rom: [0; 0x8000],
+            rom_bank: 1,
+            rom: [0; 0x200000],
             wram_00: [0; 0x1000],
             wram_01: [0; 0x1000],
             display,
@@ -177,14 +180,18 @@ impl Memory {
 
         f.read(&mut self.rom)?;
 
+        println!("MBC: {:02x}", self.rom[0x147]);
+
         Ok(())
     }
 
     pub fn r(&self, addr: u16) -> Result<u8, MemError> {
         if addr < 0x100 && self.boot_rom_on {
             Ok(self.boot_rom[addr as usize])
-        } else if addr < 0x8000 {
+        } else if addr < 0x4000 {
             Ok(self.rom[addr as usize])
+        } else if addr < 0x8000 {
+            Ok(self.rom[self.rom_bank as usize * 0x4000 + addr as usize - 0x4000 as usize])
         } else if addr >= 0xc000 && addr < 0xd000 {
             Ok(self.wram_00[addr as usize - 0xc000])
         } else if addr >= 0xe000 && addr < 0xf000 {
@@ -209,9 +216,12 @@ impl Memory {
     }
 
     pub fn w(&mut self, addr: u16, value: u8) -> Result<(), MemError> {
-        if addr < 0x100 && self.boot_rom_on {
-            Ok(())
-        } else if addr < 0x8000 {
+        if addr >= 0x2000 && addr < 0x4000 {
+            if (value == 0) {
+                self.rom_bank = 1
+            } else {
+                self.rom_bank = value & 0b11111;
+            }
             Ok(())
         } else if addr >= 0xc000 && addr < 0xd000 {
             self.wram_00[addr as usize - 0xc000] = value;

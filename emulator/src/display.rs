@@ -82,7 +82,7 @@ impl Display {
             let data = (((self.tiledata[tile_pointer + l * 2] as u8) >> b) & 1)
                 | ((((self.tiledata[tile_pointer + l * 2 + 1] as u8) >> b) & 1) << 1);
 
-            let pxx = x as i32 * 8 + 7 - b as i32 - self.viewport_x as i32;
+            let pxx = (x as i32 * 8 + 7 - b as i32 - self.viewport_x as i32) as u8 as u32;
             let pxy = ((y as i32 * 8) + l as i32) - self.viewport_y as i32;
 
             if pxy < 144 && pxx < 160 && pxy >= 0 && pxx >= 0 {

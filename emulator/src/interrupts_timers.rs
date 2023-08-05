@@ -16,6 +16,7 @@ impl GBState {
                     self.mem.halt = false;
 
                     self.mem.io[0x0f] &= !(1 << i);
+                    break;
                 }
             }
         }
@@ -24,14 +25,13 @@ impl GBState {
 
     pub fn tima_timer(&mut self, c: u64) {
         if self.mem.timer_enabled
-            && self.tima_cycles >= TIMA_TIMER_SPEEDS[self.mem.timer_speed as usize]
+            && self.tima_cycles >= TIMA_TIMER_SPEEDS[self.mem.timer_speed as usize] * 4
         {
-            // yep, I'll fix it later
             if (self.mem.tima == 0xff) {
                 self.mem.io[0x0f] |= 0b100;
             }
             self.mem.tima += 1;
-            self.tima_cycles %= TIMA_TIMER_SPEEDS[self.mem.timer_speed as usize];
+            self.tima_cycles %= TIMA_TIMER_SPEEDS[self.mem.timer_speed as usize] * 4;
         }
         self.tima_cycles += c;
     }
@@ -41,6 +41,10 @@ impl GBState {
 
         if vblank_interrupt {
             self.mem.io[0x0f] |= 1;
+
+            // For now I'm also using vblank for the stat interrupt bc I don't understand how
+            // it's supposed to work and it seems to not matter too much so far ¯\_(⁰͡ ͜ʖ⁰͡ )_/¯
+            self.mem.io[0x0f] |= 2;
         }
     }
 

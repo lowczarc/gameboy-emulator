@@ -17,6 +17,9 @@ use std::{thread, time};
 pub fn exec_opcode(state: &mut GBState) -> Result<u64, MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
 
+    // if !state.mem.boot_rom_on {
+    //     state.mem.w(0xff43, state.mem.r(0xffa4)?)?;
+    // }
     state.cpu.pc += 1;
 
     let n1 = (opcode >> 3) & 0b111;
