@@ -12,7 +12,7 @@ use crate::gamepad::Gamepad;
 use crate::state::{GBState, MemError};
 use std::env;
 use std::time::SystemTime;
-use std::{time, thread};
+use std::{thread, time};
 
 pub fn exec_opcode(state: &mut GBState) -> Result<u64, MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
@@ -53,10 +53,13 @@ fn main() {
 
     loop {
         let now = SystemTime::now();
-        let c = exec_opcode(&mut state).unwrap();
+        let c = if !state.mem.halt {
+            exec_opcode(&mut state).unwrap()
+        } else {
+            20
+        };
 
         if cycles >= 256 {
-
             gamepad.update_events();
 
             let action_button_reg = gamepad.get_action_gamepad_reg();
@@ -81,14 +84,10 @@ fn main() {
         nanos_sleep += c as i128 * consts::CPU_CYCLE_LENGTH_NANOS as i128;
 
         if nanos_sleep > 0 {
-            thread::sleep(time::Duration::from_nanos(
-                nanos_sleep as u64,
-            ));
+            thread::sleep(time::Duration::from_nanos(nanos_sleep as u64));
 
-            nanos_sleep = nanos_sleep - SystemTime::now()
-             .duration_since(now)
-             .unwrap()
-             .as_nanos() as i128;
+            nanos_sleep =
+                nanos_sleep - SystemTime::now().duration_since(now).unwrap().as_nanos() as i128;
         }
     }
 }

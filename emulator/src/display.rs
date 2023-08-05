@@ -76,7 +76,7 @@ impl Display {
         let tile_pointer = if self.lcdc & lcdc_flags::BG_TILEDATA_AREA != 0 {
             ((tile as u16) << 4) as usize
         } else {
-            ((tile as u16) << 4) as usize + 0x800
+            ((tile as i8 as i32) * 16) as usize + 0x1000
         };
         for b in (0..8).rev() {
             let data = (((self.tiledata[tile_pointer + l * 2] as u8) >> b) & 1)
@@ -164,7 +164,11 @@ impl Display {
             let y = self.oam[o * 4];
             let x = self.oam[o * 4 + 1];
             let tile = self.oam[o * 4 + 2];
-            let _opts = self.oam[o * 4 + 3];
+            let opts = self.oam[o * 4 + 3];
+            let bg_priority_flag = true;// opts & 0b1000000 != 0;
+            let x_flip = opts & 0b100000 != 0;
+            let y_flip = opts & 0b10000 != 0;
+            let palette = (opts >> 4) & 1;
             let tile_pointer = ((tile as u16) << 4) as usize;
 
             if y < self.ly || y >= self.ly + 8 {
@@ -173,16 +177,23 @@ impl Display {
 
             let l = 7 - (y - self.ly);
 
-            for b in (0..8).rev() {
-                let pxx = x as i32 + 7 - b as i32 - 8;
+            for b in 0..8 {
+                let pxx = if x_flip {
+                    x as i32 + b as i32 - 8
+                } else {
+                    x as i32 + 7 - b as i32 - 8
+                };
                 let pxy = self.ly as i32 - 9;
 
                 let data = (((self.tiledata[tile_pointer + l as usize * 2] as u8) >> b) & 1)
                     | ((((self.tiledata[tile_pointer + l as usize * 2 + 1] as u8) >> b) & 1) << 1);
 
                 if pxy < 144 && pxx < 160 && pxy >= 0 && pxx >= 0 {
-                    self.framebuffer[pxy as usize * 160 + pxx as usize] =
-                        self.color_palette(data, self.bg_palette);
+                    if !bg_priority_flag || data != 0 {
+
+                        self.framebuffer[pxy as usize * 160 + pxx as usize] =
+                            self.color_palette(data, self.obj_palettes[palette as usize]);
+                    }
                 }
             }
         }
@@ -193,7 +204,7 @@ impl Display {
         self.stat += cycles;
         if self.lcdc & lcdc_flags::LCD_ENABLE != 0 && self.stat >= LINE_DOTS {
             self.print_bg();
-            self.print_win();
+            // self.print_win();
             self.print_obj();
             self.ly = (self.ly + 1) % 154;
             self.stat %= LINE_DOTS;

@@ -663,7 +663,8 @@ pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<u64, MemError> {
 pub fn op01(state: &mut GBState, n1: u8, n2: u8) -> Result<u64, MemError> {
     // Dispatcher for the instructions starting with 0b01 (LD r,r and HALT)
     if n1 == 0b110 && n2 == 0b110 {
-        todo!("HALT")
+        state.mem.halt = true;
+        Ok(4)
     } else {
         ldrr(state, n1, n2)?;
 

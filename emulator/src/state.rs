@@ -116,6 +116,8 @@ pub struct Memory {
     pub joypad_is_action: bool,
 
     pub interrupts_register: u8,
+
+    pub halt: bool,
 }
 
 #[derive(Debug)]
@@ -146,6 +148,7 @@ impl Memory {
             joypad_is_action: false,
             joypad_reg: 0,
             div: 0,
+            halt: false,
         }
     }
 

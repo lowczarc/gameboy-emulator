@@ -10,6 +10,7 @@ impl GBState {
 
                 self.mem.ime = false;
                 self.cpu.pc = 0x40;
+                self.mem.halt = false;
 
                 self.mem.io[0x0f] &= !1;
             }

@@ -71,7 +71,7 @@ impl Memory {
         //     0x47 => println!("WRITE BG palette data"),
         //     0x50 => println!("WRITE Unmount boot ROM "),
         //     0xff => println!("Write Interrupt enable"),
-        //     _ => println!("WRITE IDK Yet"),
+        //     _ => println!("WRITE IDK Yet {:02x}", addr),
         // }
 
         match addr {
