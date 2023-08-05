@@ -5,7 +5,7 @@ use std::time::Duration;
 
 const SAMPLE_RATE: u32 = 65536;
 
-const SAMPLE_AVERAGING: usize = 20;
+const SAMPLE_AVERAGING: usize = 1; //20;
 
 const SQUARE_WAVE_PATTERN_DUTY_0: [u8; 32] = [
     0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
@@ -39,7 +39,8 @@ pub struct Wave {
     period_value: u16,
     num_sample: usize,
     wave_pattern: [u8; 32],
-    length_timer: Option<u8>,
+    length_timer: u8,
+    length_timer_enabled: bool,
 
     env_initial_volume: f32,
     env_direction: f32,
@@ -53,7 +54,8 @@ impl Wave {
         env_initial_volume: u8,
         env_direction: u8,
         env_sweep_pace: u8,
-        length_timer: Option<u8>,
+        length_timer: u8,
+        length_timer_enabled: bool,
     ) -> Wave {
         Wave {
             period_value,
@@ -63,6 +65,7 @@ impl Wave {
             env_direction: if env_direction == 0 { -1. } else { 1. },
             env_sweep_pace,
             length_timer,
+            length_timer_enabled,
         }
     }
 }
@@ -77,12 +80,11 @@ impl Iterator for Wave {
             return None;
         }
 
-        if let Some(length_timer) = self.length_timer {
-            if length_timer < 64
-                && SAMPLE_RATE * (64 - length_timer as u32) / 256 < self.num_sample as u32
-            {
-                return None;
-            }
+        if self.length_timer_enabled
+            && self.length_timer < 64
+            && SAMPLE_RATE * (64 - self.length_timer as u32) / 256 < self.num_sample as u32
+        {
+            return None;
         }
 
         let envelope_time = if self.env_sweep_pace != 0 {
@@ -196,7 +198,8 @@ impl Source for MutableWave {
 pub struct AudioSquareChannel {
     wave: Arc<Mutex<Option<Wave>>>,
 
-    pub length_timer: Option<u8>,
+    pub length_timer: u8,
+    pub length_timer_enabled: bool,
     pub on: bool,
     pub period_value: u16,
     pub duty: u8,
@@ -215,7 +218,8 @@ impl AudioSquareChannel {
             env_direction: 0,
             sweep: 0,
             wave,
-            length_timer: None,
+            length_timer: 0,
+            length_timer_enabled: false,
         }
     }
 
@@ -229,6 +233,7 @@ impl AudioSquareChannel {
                     self.env_direction,
                     self.sweep,
                     self.length_timer,
+                    self.length_timer_enabled,
                 ));
             } else {
                 *wave = None;
@@ -240,7 +245,8 @@ impl AudioSquareChannel {
 pub struct AudioCustomChannel {
     wave: Arc<Mutex<Option<Wave>>>,
 
-    pub length_timer: Option<u8>,
+    pub length_timer: u8,
+    pub length_timer_enabled: bool,
     pub wave_pattern: [u8; 32],
     pub on: bool,
     pub period_value: u16,
@@ -261,7 +267,8 @@ impl AudioCustomChannel {
             env_direction: 0,
             sweep: 0,
             wave,
-            length_timer: None,
+            length_timer: 0,
+            length_timer_enabled: false,
         }
     }
 
@@ -275,6 +282,7 @@ impl AudioCustomChannel {
                     self.env_direction,
                     self.sweep,
                     self.length_timer,
+                    self.length_timer_enabled,
                 ));
             } else {
                 *wave = None;

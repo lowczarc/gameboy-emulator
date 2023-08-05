@@ -165,7 +165,7 @@ impl Display {
             let x = self.oam[o * 4 + 1];
             let tile = self.oam[o * 4 + 2];
             let opts = self.oam[o * 4 + 3];
-            let bg_priority_flag = true;// opts & 0b1000000 != 0;
+            let bg_priority_flag = true; // opts & 0b1000000 != 0;
             let x_flip = opts & 0b100000 != 0;
             let y_flip = opts & 0b10000 != 0;
             let palette = (opts >> 4) & 1;
@@ -190,7 +190,6 @@ impl Display {
 
                 if pxy < 144 && pxx < 160 && pxy >= 0 && pxx >= 0 {
                     if !bg_priority_flag || data != 0 {
-
                         self.framebuffer[pxy as usize * 160 + pxx as usize] =
                             self.color_palette(data, self.obj_palettes[palette as usize]);
                     }

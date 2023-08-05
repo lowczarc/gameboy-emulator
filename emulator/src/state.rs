@@ -118,6 +118,14 @@ pub struct Memory {
     pub interrupts_register: u8,
 
     pub halt: bool,
+
+    pub tima: u8,
+
+    pub tma: u8,
+
+    pub timer_enabled: bool,
+
+    pub timer_speed: u8,
 }
 
 #[derive(Debug)]
@@ -149,6 +157,10 @@ impl Memory {
             joypad_reg: 0,
             div: 0,
             halt: false,
+            tima: 0,
+            tma: 0,
+            timer_enabled: false,
+            timer_speed: 0,
         }
     }
 
@@ -234,6 +246,9 @@ pub struct GBState {
     pub cpu: CPU,
     pub mem: Memory,
     pub is_debug: bool,
+
+    pub div_cycles: u64,
+    pub tima_cycles: u64,
 }
 
 impl GBState {
@@ -246,6 +261,9 @@ impl GBState {
             cpu: CPU::new(),
             mem,
             is_debug: false,
+
+            div_cycles: 0,
+            tima_cycles: 0,
         }
     }
 

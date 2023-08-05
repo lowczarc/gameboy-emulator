@@ -81,13 +81,17 @@ impl Memory {
             0x04 => {
                 self.div = 0;
             }
+            0x05 => panic!("Tried to write into timer"),
+            0x06 => {
+                self.tma = value;
+            }
+            0x07 => {
+                self.timer_enabled = value & 0b100 != 0;
+                self.timer_speed = value & 0b11;
+            }
             0x11 => {
                 self.audio.ch1.duty = value >> 6;
-                // if value & 0b111111 != 0 {
-                //     self.audio.ch1.length_timer = Some(value & 0b111111);
-                // } else {
-                //     self.audio.ch1.length_timer = None;
-                // }
+                self.audio.ch1.length_timer = value & 0b111111;
             }
             0x12 => {
                 self.audio.ch1.initial_volume = value >> 4;
@@ -101,17 +105,14 @@ impl Memory {
             0x14 => {
                 self.audio.ch1.period_value &= 0xff;
                 self.audio.ch1.period_value |= ((value & 0b111) as u16) << 8;
+                self.audio.ch1.length_timer_enabled = value & 0b01000000 != 0;
                 if value >> 7 == 1 {
                     self.audio.ch1.update();
                 }
             }
             0x16 => {
                 self.audio.ch2.duty = value >> 6;
-                // if value & 0b111111 != 0 {
-                //     self.audio.ch2.length_timer = Some(value & 0b111111);
-                // } else {
-                //     self.audio.ch2.length_timer = None;
-                // }
+                self.audio.ch2.length_timer = value & 0b111111;
             }
             0x17 => {
                 self.audio.ch2.initial_volume = value >> 4;
@@ -125,16 +126,13 @@ impl Memory {
             0x19 => {
                 self.audio.ch2.period_value &= 0xff;
                 self.audio.ch2.period_value |= ((value & 0b111) as u16) << 8;
+                self.audio.ch2.length_timer_enabled = value & 0b01000000 != 0;
                 if value >> 7 == 1 {
                     self.audio.ch2.update();
                 }
             }
             0x1b => {
-                if value < 64 {
-                    self.audio.ch3.length_timer = Some(value);
-                } else {
-                    self.audio.ch3.length_timer = None;
-                }
+                self.audio.ch3.length_timer = value & 0b111111;
             }
             0x1c => {
                 let s = (value >> 5) & 0b11;
@@ -152,6 +150,7 @@ impl Memory {
                 self.audio.ch3.period_value &= 0xff;
                 self.audio.ch3.period_value |= ((value & 0b111) as u16) << 8;
                 self.audio.ch3.period_value /= 2;
+                self.audio.ch3.length_timer_enabled = value & 0b01000000 != 0;
                 if value >> 7 == 1 {
                     self.audio.ch3.update();
                 }

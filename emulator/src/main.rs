@@ -2,7 +2,7 @@ pub mod audio;
 pub mod consts;
 pub mod display;
 pub mod gamepad;
-pub mod interrupts;
+pub mod interrupts_timers;
 pub mod io;
 pub mod opcodes;
 pub mod state;
@@ -46,7 +46,6 @@ fn main() {
     println!("Starting {:?}...", rom.clone().unwrap());
 
     let mut state = GBState::new();
-    let mut cycles = 0;
 
     state.mem.load_rom(&rom.unwrap()).unwrap();
     let mut nanos_sleep: i128 = 0;
@@ -56,10 +55,17 @@ fn main() {
         let c = if !state.mem.halt {
             exec_opcode(&mut state).unwrap()
         } else {
-            20
+            4
         };
 
-        if cycles >= 256 {
+        state.div_timer(c);
+        state.tima_timer(c);
+        state.update_display_interrupts(c);
+        state.check_interrupts().unwrap();
+
+        nanos_sleep += c as i128 * consts::CPU_CYCLE_LENGTH_NANOS as i128;
+
+        if nanos_sleep > 0 {
             gamepad.update_events();
 
             let action_button_reg = gamepad.get_action_gamepad_reg();
@@ -67,24 +73,7 @@ fn main() {
 
             state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
 
-            state.mem.div += 1;
-
-            cycles = 0;
-        }
-        cycles += c;
-
-        let vblank_interrupt = state.mem.display.update_display(c);
-
-        if vblank_interrupt {
-            state.mem.io[0x0f] |= 1;
-        }
-
-        state.check_interrupts().unwrap();
-
-        nanos_sleep += c as i128 * consts::CPU_CYCLE_LENGTH_NANOS as i128;
-
-        if nanos_sleep > 0 {
-            thread::sleep(time::Duration::from_nanos(nanos_sleep as u64));
+            thread::sleep(time::Duration::from_nanos(nanos_sleep as u64 / 10));
 
             nanos_sleep =
                 nanos_sleep - SystemTime::now().duration_since(now).unwrap().as_nanos() as i128;
