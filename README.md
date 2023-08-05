@@ -5,7 +5,7 @@
 ![demo](demo.gif)
 
 My goal is to introduce myself to low level programming and emulators by writing a gameboy emulator in Rust 🦀.<br>
-For now it only can run Tetris.
+For now it only can run Tetris and Dr.Mario.
 
 ## 🧰 Structure
 
