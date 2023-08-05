@@ -1,7 +1,7 @@
 use crate::opcodes;
 use crate::state::{GBState, MemError};
 
-const TIMA_TIMER_SPEEDS: [u64; 4] = [256, 4, 16, 64];
+const TIMA_TIMER_SPEEDS: [u64; 4] = [1024, 16, 64, 256];
 
 impl GBState {
     pub fn check_interrupts(&mut self) -> Result<(), MemError> {
@@ -25,13 +25,15 @@ impl GBState {
 
     pub fn tima_timer(&mut self, c: u64) {
         if self.mem.timer_enabled
-            && self.tima_cycles >= TIMA_TIMER_SPEEDS[self.mem.timer_speed as usize] * 4
+            && self.tima_cycles >= TIMA_TIMER_SPEEDS[self.mem.timer_speed as usize]
         {
             if (self.mem.tima == 0xff) {
                 self.mem.io[0x0f] |= 0b100;
+                self.mem.tima = self.mem.tma;
+            } else {
+                self.mem.tima += 1;
             }
-            self.mem.tima += 1;
-            self.tima_cycles %= TIMA_TIMER_SPEEDS[self.mem.timer_speed as usize] * 4;
+            self.tima_cycles %= TIMA_TIMER_SPEEDS[self.mem.timer_speed as usize];
         }
         self.tima_cycles += c;
     }
