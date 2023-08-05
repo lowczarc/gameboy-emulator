@@ -161,7 +161,7 @@ impl Display {
         }
 
         for o in 0..40 {
-            let y = self.oam[o * 4];
+            let y = self.oam[o * 4] - 9;
             let x = self.oam[o * 4 + 1];
             let tile = self.oam[o * 4 + 2];
             let opts = self.oam[o * 4 + 3];
@@ -183,7 +183,7 @@ impl Display {
                 } else {
                     x as i32 + 7 - b as i32 - 8
                 };
-                let pxy = self.ly as i32 - 9;
+                let pxy = self.ly as i32;
 
                 let data = (((self.tiledata[tile_pointer + l as usize * 2] as u8) >> b) & 1)
                     | ((((self.tiledata[tile_pointer + l as usize * 2 + 1] as u8) >> b) & 1) << 1);
