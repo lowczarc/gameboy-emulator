@@ -34,6 +34,9 @@ pub struct Display {
     pub lcdc: u8,
     pub ly: u8,
 
+    pub window_x: u8,
+    pub window_y: u8,
+
     last_dt: SystemTime,
 
     stat: u64,
@@ -42,7 +45,7 @@ pub struct Display {
 impl Display {
     pub fn new() -> Self {
         Self {
-            window: Window::new("Gameboy Emulator", 512, 461, WindowOptions::default()).unwrap(),
+            window: Window::new("Gameboy Emulator", 512, 461/* 1200, 1080 */, WindowOptions::default()).unwrap(),
             framebuffer: [0; 160 * 144],
             tiledata: [0; 0x1800],
             tilemaps: [0; 0x800],
@@ -53,6 +56,8 @@ impl Display {
             viewport_x: 0,
             lcdc: 0,
             ly: 0,
+            window_x: 0,
+            window_y: 0,
             last_dt: SystemTime::now(),
             stat: 0,
         }
@@ -82,10 +87,10 @@ impl Display {
             let data = (((self.tiledata[tile_pointer + l * 2] as u8) >> b) & 1)
                 | ((((self.tiledata[tile_pointer + l * 2 + 1] as u8) >> b) & 1) << 1);
 
-            let pxx = (x as i32 * 8 + 7 - b as i32 - self.viewport_x as i32) as u8 as u32;
-            let pxy = ((y as i32 * 8) + l as i32) - self.viewport_y as i32;
+            let pxx = (x as i32 + 7 - b as i32) as u8;
+            let pxy = y as i32;
 
-            if pxy < 144 && pxx < 160 && pxy >= 0 && pxx >= 0 {
+            if pxy < 144 && pxx < 160 {
                 self.framebuffer[pxy as usize * 160 + pxx as usize] =
                     self.color_palette(data, self.bg_palette);
             }
@@ -94,7 +99,7 @@ impl Display {
     pub fn print_all_tiles(&mut self) {
         for i in 0..=255 {
             for l in 0..8 {
-                self.print_tile(i, i % 20, i / 20, l);
+                self.print_tile(i, (i % 20) * 8, (i / 20) * 8, l);
             }
         }
     }
@@ -127,11 +132,14 @@ impl Display {
             0
         };
 
-        let y = (self.ly / 8) as usize;
+        let y_tile = (self.ly + self.viewport_y) as usize;
 
         for x in 0..32 {
-            let tile = self.tilemaps[tilemap_pointer + y * 32 + x];
-            self.print_tile(tile, x as u8, y as u8, (self.ly % 8) as usize);
+            if (tilemap_pointer + (y_tile / 8) * 32 + x >= 2048) {
+                return
+            }
+            let tile = self.tilemaps[tilemap_pointer + (y_tile / 8) * 32 + x];
+            self.print_tile(tile, x as u8 * 8 - self.viewport_x, self.ly, (y_tile % 8) as usize);
         }
     }
 
@@ -139,7 +147,7 @@ impl Display {
         if self.lcdc & lcdc_flags::WIN_ENABLE == 0 {
             return;
         }
-        println!("PRINT WIN");
+        println!("PRINT WIN {} {}", self.window_x, self.window_y);
 
         let tilemap_pointer = if self.lcdc & lcdc_flags::WIN_TILEMAP_AREA != 0 {
             0x400
@@ -147,11 +155,14 @@ impl Display {
             0
         };
 
-        let y = (self.ly / 8) as usize;
+        let y_tile = (self.ly - self.window_y) as usize;
 
         for x in 0..32 {
-            let tile = self.tilemaps[tilemap_pointer + y * 32 + x];
-            self.print_tile(tile, x as u8, y as u8, (self.ly % 8) as usize);
+            if (tilemap_pointer + (y_tile / 8) * 32 + x >= 2048) {
+                return
+            }
+            let tile = self.tilemaps[tilemap_pointer + (y_tile / 8) * 32 + x];
+            self.print_tile(tile, x as u8 * 8 + self.window_x, self.ly, (y_tile % 8) as usize);
         }
     }
 
@@ -160,12 +171,12 @@ impl Display {
             return;
         }
 
-        for o in 0..40 {
+        for o in (0..40).rev() {
             let y = self.oam[o * 4] - 9;
             let x = self.oam[o * 4 + 1];
             let tile = self.oam[o * 4 + 2];
             let opts = self.oam[o * 4 + 3];
-            let bg_priority_flag = true; // opts & 0b1000000 != 0;
+            let bg_priority_flag = true; //opts & 0b1000000 != 0;
             let x_flip = opts & 0b100000 != 0;
             let y_flip = opts & 0b10000 != 0;
             let palette = (opts >> 4) & 1;
@@ -179,9 +190,9 @@ impl Display {
 
             for b in 0..8 {
                 let pxx = if x_flip {
-                    x as i32 + b as i32 - 8
+                    x as i32 + b as i32 - 8 as u8 as i32
                 } else {
-                    x as i32 + 7 - b as i32 - 8
+                    x as i32 + 7 - b as i32 - 8 as u8 as i32
                 };
                 let pxy = self.ly as i32;
 
@@ -203,7 +214,7 @@ impl Display {
         self.stat += cycles;
         if self.lcdc & lcdc_flags::LCD_ENABLE != 0 && self.stat >= LINE_DOTS {
             self.print_bg();
-            // self.print_win();
+            self.print_win();
             self.print_obj();
             self.ly = (self.ly + 1) % 154;
             self.stat %= LINE_DOTS;

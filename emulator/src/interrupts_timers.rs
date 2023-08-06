@@ -27,7 +27,7 @@ impl GBState {
         if self.mem.timer_enabled
             && self.tima_cycles >= TIMA_TIMER_SPEEDS[self.mem.timer_speed as usize]
         {
-            if (self.mem.tima == 0xff) {
+            if self.mem.tima == 0xff {
                 self.mem.io[0x0f] |= 0b100;
                 self.mem.tima = self.mem.tma;
             } else {

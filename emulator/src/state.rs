@@ -217,7 +217,7 @@ impl Memory {
 
     pub fn w(&mut self, addr: u16, value: u8) -> Result<(), MemError> {
         if addr >= 0x2000 && addr < 0x4000 {
-            if (value == 0) {
+            if value == 0 {
                 self.rom_bank = 1
             } else {
                 self.rom_bank = value & 0b11111;

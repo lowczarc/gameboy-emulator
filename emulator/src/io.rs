@@ -81,7 +81,9 @@ impl Memory {
             0x04 => {
                 self.div = 0;
             }
-            0x05 => panic!("Tried to write into timer"),
+            0x05 => {
+                self.tima = value;
+            }
             0x06 => {
                 self.tma = value;
             }
@@ -170,6 +172,8 @@ impl Memory {
             0x47 => self.display.bg_palette = value,
             0x48 => self.display.obj_palettes[0] = value,
             0x49 => self.display.obj_palettes[1] = value,
+            0x4a => self.display.window_x = value,
+            0x4b => self.display.window_y = value,
             0x50 => self.boot_rom_on = value & 1 == 0 && self.boot_rom_on,
             _ => self.io[addr as usize] = value,
         }
