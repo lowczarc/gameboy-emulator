@@ -239,31 +239,12 @@ pub fn dec8(state: &mut GBState, n1: u8) -> Result<u64, MemError> {
 pub fn inc16(state: &mut GBState, rr: u8) -> u64 {
     // Increment 16 bit register
     state.cpu.w16(rr, state.cpu.r16(rr) + 1);
-    state.cpu.r[reg::F as usize] &= !(flag::N | flag::ZF | flag::H);
-
-    if state.cpu.r16(rr) == 0 {
-        state.cpu.r[reg::F as usize] |= flag::ZF;
-    }
-
-    if state.cpu.r16(rr) & 0xff == 0x0 {
-        state.cpu.r[reg::F as usize] |= flag::H;
-    }
     8
 }
 
 pub fn dec16(state: &mut GBState, rr: u8) -> u64 {
     // Decrement 16 bit register
     state.cpu.w16(rr, state.cpu.r16(rr) - 1);
-    state.cpu.r[reg::F as usize] |= flag::N;
-
-    state.cpu.r[reg::F as usize] &= !(flag::ZF | flag::H);
-    if state.cpu.r16(rr) == 0 {
-        state.cpu.r[reg::F as usize] |= flag::ZF;
-    }
-
-    if state.cpu.r16(rr) & 0xff == 0xff {
-        state.cpu.r[reg::F as usize] |= flag::H;
-    }
     8
 }
 

@@ -90,6 +90,8 @@ pub struct Memory {
 
     pub rom_bank: u8,
 
+    pub ram_bank: u8,
+
     // 32 KiB ROM bank 00
     rom: [u8; 0x200000],
 
@@ -98,6 +100,9 @@ pub struct Memory {
 
     // 4 KiB Work RAM 00
     wram_01: [u8; 0x1000],
+
+    // External RAM
+    external_ram: [u8; 0x8000],
 
     // 8 KiB Video RAM
     pub display: Display,
@@ -147,9 +152,11 @@ impl Memory {
             boot_rom: [0; 0x100],
             boot_rom_on: true,
             rom_bank: 1,
+            ram_bank: 0,
             rom: [0; 0x200000],
             wram_00: [0; 0x1000],
             wram_01: [0; 0x1000],
+            external_ram: [0; 0x8000],
             display,
             io: [0; 0x80],
             hram: [0; 0x7f],
@@ -192,6 +199,8 @@ impl Memory {
             Ok(self.rom[addr as usize])
         } else if addr < 0x8000 {
             Ok(self.rom[self.rom_bank as usize * 0x4000 + addr as usize - 0x4000 as usize])
+        } else if addr >= 0xa000 && addr < 0xc000 {
+            Ok(self.external_ram[self.ram_bank as usize * 0x2000 + addr as usize - 0xa000])
         } else if addr >= 0xc000 && addr < 0xd000 {
             Ok(self.wram_00[addr as usize - 0xc000])
         } else if addr >= 0xe000 && addr < 0xf000 {
@@ -222,6 +231,9 @@ impl Memory {
             } else {
                 self.rom_bank = value & 0b11111;
             }
+            Ok(())
+        } else if addr >= 0x4000 && addr < 0x6000 {
+            self.ram_bank = value & 0b11;
             Ok(())
         } else if addr >= 0xc000 && addr < 0xd000 {
             self.wram_00[addr as usize - 0xc000] = value;

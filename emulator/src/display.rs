@@ -18,10 +18,17 @@ mod lcdc_flags {
     pub const LCD_ENABLE: u8 = 0b10000000;
 }
 
+pub enum DisplayInterrupt {
+    Vblank,
+    Stat,
+    None,
+}
+
 #[derive(Debug)]
 pub struct Display {
     window: Window,
     framebuffer: [u32; 160 * 144],
+    bg_buffer: [u8; 160 * 144],
 
     tiledata: [u8; 0x1800],
     tilemaps: [u8; 0x800],
@@ -33,6 +40,8 @@ pub struct Display {
     pub viewport_x: u8,
     pub lcdc: u8,
     pub ly: u8,
+    pub lyc: u8,
+    pub lcd_interrupt_mode: u8,
 
     pub window_x: u8,
     pub window_y: u8,
@@ -45,8 +54,15 @@ pub struct Display {
 impl Display {
     pub fn new() -> Self {
         Self {
-            window: Window::new("Gameboy Emulator", 512, 461/* 1200, 1080 */, WindowOptions::default()).unwrap(),
+            window: Window::new(
+                "Gameboy Emulator",
+                /*512, 461*/ 1200,
+                1080,
+                WindowOptions::default(),
+            )
+            .unwrap(),
             framebuffer: [0; 160 * 144],
+            bg_buffer: [0; 160 * 144],
             tiledata: [0; 0x1800],
             tilemaps: [0; 0x800],
             oam: [0; 0xa0],
@@ -60,6 +76,8 @@ impl Display {
             window_y: 0,
             last_dt: SystemTime::now(),
             stat: 0,
+            lyc: 0,
+            lcd_interrupt_mode: 0xff,
         }
     }
 
@@ -93,6 +111,7 @@ impl Display {
             if pxy < 144 && pxx < 160 {
                 self.framebuffer[pxy as usize * 160 + pxx as usize] =
                     self.color_palette(data, self.bg_palette);
+                self.bg_buffer[pxy as usize * 160 + pxx as usize] = data;
             }
         }
     }
@@ -135,11 +154,13 @@ impl Display {
         let y_tile = (self.ly + self.viewport_y) as usize;
 
         for x in 0..32 {
-            if (tilemap_pointer + (y_tile / 8) * 32 + x >= 2048) {
-                return
-            }
             let tile = self.tilemaps[tilemap_pointer + (y_tile / 8) * 32 + x];
-            self.print_tile(tile, x as u8 * 8 - self.viewport_x, self.ly, (y_tile % 8) as usize);
+            self.print_tile(
+                tile,
+                x as u8 * 8 - self.viewport_x,
+                self.ly,
+                (y_tile % 8) as usize,
+            );
         }
     }
 
@@ -147,7 +168,6 @@ impl Display {
         if self.lcdc & lcdc_flags::WIN_ENABLE == 0 {
             return;
         }
-        println!("PRINT WIN {} {}", self.window_x, self.window_y);
 
         let tilemap_pointer = if self.lcdc & lcdc_flags::WIN_TILEMAP_AREA != 0 {
             0x400
@@ -155,14 +175,19 @@ impl Display {
             0
         };
 
-        let y_tile = (self.ly - self.window_y) as usize;
+        let y_tile = (self.ly - self.window_y + 7) as usize;
 
         for x in 0..32 {
-            if (tilemap_pointer + (y_tile / 8) * 32 + x >= 2048) {
-                return
+            if tilemap_pointer + (y_tile / 8) * 32 + x >= 2048 {
+                return;
             }
             let tile = self.tilemaps[tilemap_pointer + (y_tile / 8) * 32 + x];
-            self.print_tile(tile, x as u8 * 8 + self.window_x, self.ly, (y_tile % 8) as usize);
+            self.print_tile(
+                tile,
+                x as u8 * 8 + self.window_x,
+                self.ly,
+                (y_tile % 8) as usize,
+            );
         }
     }
 
@@ -176,9 +201,9 @@ impl Display {
             let x = self.oam[o * 4 + 1];
             let tile = self.oam[o * 4 + 2];
             let opts = self.oam[o * 4 + 3];
-            let bg_priority_flag = true; //opts & 0b1000000 != 0;
+            let bg_priority_flag = opts & 0b10000000 != 0;
             let x_flip = opts & 0b100000 != 0;
-            let y_flip = opts & 0b10000 != 0;
+            let y_flip = opts & 0b1000000 != 0;
             let palette = (opts >> 4) & 1;
             let tile_pointer = ((tile as u16) << 4) as usize;
 
@@ -200,7 +225,10 @@ impl Display {
                     | ((((self.tiledata[tile_pointer + l as usize * 2 + 1] as u8) >> b) & 1) << 1);
 
                 if pxy < 144 && pxx < 160 && pxy >= 0 && pxx >= 0 {
-                    if !bg_priority_flag || data != 0 {
+                    if data != 0
+                        && !((bg_priority_flag /* && self.lcdc & lcdc_flags::BG_PRIORITY != 0 */)
+                            && self.bg_buffer[pxy as usize * 160 + pxx as usize] != 0)
+                    {
                         self.framebuffer[pxy as usize * 160 + pxx as usize] =
                             self.color_palette(data, self.obj_palettes[palette as usize]);
                     }
@@ -209,8 +237,8 @@ impl Display {
         }
     }
 
-    pub fn update_display(&mut self, cycles: u64) -> bool {
-        let mut vblank_interrupt = false;
+    pub fn update_display(&mut self, cycles: u64) -> DisplayInterrupt {
+        let mut ret_interrupt = DisplayInterrupt::None;
         self.stat += cycles;
         if self.lcdc & lcdc_flags::LCD_ENABLE != 0 && self.stat >= LINE_DOTS {
             self.print_bg();
@@ -219,21 +247,27 @@ impl Display {
             self.ly = (self.ly + 1) % 154;
             self.stat %= LINE_DOTS;
             if self.ly == 0x90
-                && SystemTime::now()
+            {
+                ret_interrupt = DisplayInterrupt::Vblank;
+                if SystemTime::now()
                     .duration_since(self.last_dt)
                     .unwrap()
                     .as_micros()
                     > DISPLAY_UPDATE_SLEEP_TIME_MICROS as u128
-            {
-                self.update();
-                vblank_interrupt = true;
-                self.last_dt = SystemTime::now();
+                {
+                    self.update();
+                    self.last_dt = SystemTime::now();
+                }
+            }
+
+            if self.lcd_interrupt_mode == 3 && self.ly == self.lyc + 1 {
+                ret_interrupt = DisplayInterrupt::Stat;
             }
         }
         if self.lcdc & lcdc_flags::LCD_ENABLE == 0 {
             self.ly = 0;
         }
 
-        return vblank_interrupt;
+        return ret_interrupt;
     }
 }

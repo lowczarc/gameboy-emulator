@@ -42,7 +42,13 @@ impl Memory {
                     0xff
                 }
             }
-            _ => self.io[addr as usize],
+            // _ => self.io[addr as usize],
+            _ => {
+                if addr > 0x3f || addr < 0x10 {
+                    println!("Reading from 0xff{:02x} not implemented yet", addr);
+                }
+                0
+            }
         }
     }
 
@@ -90,6 +96,9 @@ impl Memory {
             0x07 => {
                 self.timer_enabled = value & 0b100 != 0;
                 self.timer_speed = value & 0b11;
+            }
+            0x0f => {
+                self.io[0x0f] = value;
             }
             0x11 => {
                 self.audio.ch1.duty = value >> 6;
@@ -158,6 +167,18 @@ impl Memory {
                 }
             }
             0x40 => self.display.lcdc = value,
+            0x41 => {
+                if value & 0b01000000 != 0 {
+                    self.display.lcd_interrupt_mode = 3;
+                } else if value & 0b00100000 != 0 {
+                    self.display.lcd_interrupt_mode = 2;
+                } else if value & 0b00010000 != 0 {
+                    self.display.lcd_interrupt_mode = 1;
+                } else if value & 0b00001000 != 0 {
+                    self.display.lcd_interrupt_mode = 0;
+                }
+            }
+            0x45 => self.display.lyc = value,
             0x42 => self.display.viewport_y = value,
             0x43 => self.display.viewport_x = value,
             0x46 => {
@@ -175,7 +196,11 @@ impl Memory {
             0x4a => self.display.window_x = value,
             0x4b => self.display.window_y = value,
             0x50 => self.boot_rom_on = value & 1 == 0 && self.boot_rom_on,
-            _ => self.io[addr as usize] = value,
+            _ => {
+                if addr > 0x3f || addr < 0x10 {
+                    println!("Writing to 0xff{:02x} not implemented yet", addr)
+                }
+            } // self.io[addr as usize] = value,
         }
 
         if addr >= 0x30 && addr <= 0x3f {

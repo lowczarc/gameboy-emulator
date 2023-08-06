@@ -1,3 +1,4 @@
+use crate::display::DisplayInterrupt;
 use crate::opcodes;
 use crate::state::{GBState, MemError};
 
@@ -39,14 +40,16 @@ impl GBState {
     }
 
     pub fn update_display_interrupts(&mut self, c: u64) {
-        let vblank_interrupt = self.mem.display.update_display(c);
+        let interrupt = self.mem.display.update_display(c);
 
-        if vblank_interrupt {
-            self.mem.io[0x0f] |= 1;
-
-            // For now I'm also using vblank for the stat interrupt bc I don't understand how
-            // it's supposed to work and it seems to not matter too much so far ¯\_(⁰͡ ͜ʖ⁰͡ )_/¯
-            self.mem.io[0x0f] |= 2;
+        match interrupt {
+            DisplayInterrupt::Vblank => {
+                self.mem.io[0x0f] |= 1;
+            }
+            DisplayInterrupt::Stat => {
+                self.mem.io[0xf] |= 2;
+            }
+            _ => {}
         }
     }
 
