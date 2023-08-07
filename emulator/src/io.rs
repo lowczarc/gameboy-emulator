@@ -142,6 +142,14 @@ impl Memory {
                     self.audio.ch2.update();
                 }
             }
+            0x1a => {
+                if (value & 0b10000000 != 0) {
+                    self.audio.ch3.on = true;
+                } else {
+                    self.audio.ch3.on = false;
+                }
+                self.audio.ch3.update();
+            }
             0x1b => {
                 self.audio.ch3.length_timer = value & 0b111111;
             }
