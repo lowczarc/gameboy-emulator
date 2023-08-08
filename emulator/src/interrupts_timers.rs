@@ -49,6 +49,9 @@ impl GBState {
             DisplayInterrupt::Stat => {
                 self.mem.io[0xf] |= 2;
             }
+            DisplayInterrupt::Both => {
+                self.mem.io[0xf] |= 3;
+            }
             _ => {}
         }
     }

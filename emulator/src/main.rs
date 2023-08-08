@@ -9,7 +9,7 @@ pub mod state;
 pub mod tests;
 
 use crate::gamepad::Gamepad;
-use crate::state::{GBState, MemError};
+use crate::state::{reg, GBState, MemError};
 use std::env;
 use std::time::SystemTime;
 use std::{thread, time};

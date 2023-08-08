@@ -42,11 +42,8 @@ impl Memory {
                     0xff
                 }
             }
-            // _ => self.io[addr as usize],
             _ => {
-                if addr > 0x3f || addr < 0x10 {
-                    println!("Reading from 0xff{:02x} not implemented yet", addr);
-                }
+                println!("Reading from 0xff{:02x} not implemented yet", addr);
                 0
             }
         }
@@ -143,7 +140,7 @@ impl Memory {
                 }
             }
             0x1a => {
-                if (value & 0b10000000 != 0) {
+                if value & 0b10000000 != 0 {
                     self.audio.ch3.on = true;
                 } else {
                     self.audio.ch3.on = false;
@@ -205,8 +202,8 @@ impl Memory {
             0x4b => self.display.window_y = value,
             0x50 => self.boot_rom_on = value & 1 == 0 && self.boot_rom_on,
             _ => {
-                if addr > 0x3f || addr < 0x10 {
-                    println!("Writing to 0xff{:02x} not implemented yet", addr)
+                if addr < 0x30 || addr > 0x3f {
+                    println!("Writing to 0xff{:02x} not implemented yet ({:08b})", addr, value)
                 }
             } // self.io[addr as usize] = value,
         }

@@ -21,6 +21,7 @@ mod lcdc_flags {
 pub enum DisplayInterrupt {
     Vblank,
     Stat,
+    Both,
     None,
 }
 
@@ -211,7 +212,11 @@ impl Display {
                 continue;
             }
 
-            let l = 7 - (y - self.ly);
+            let l = if y_flip {
+                y - self.ly
+            } else {
+                7 - (y - self.ly)
+            };
 
             for b in 0..8 {
                 let pxx = if x_flip {
@@ -226,7 +231,7 @@ impl Display {
 
                 if pxy < 144 && pxx < 160 && pxy >= 0 && pxx >= 0 {
                     if data != 0
-                        && !((bg_priority_flag /* && self.lcdc & lcdc_flags::BG_PRIORITY != 0 */)
+                        && !((bg_priority_flag/* && self.lcdc & lcdc_flags::BG_PRIORITY != 0 */)
                             && self.bg_buffer[pxy as usize * 160 + pxx as usize] != 0)
                     {
                         self.framebuffer[pxy as usize * 160 + pxx as usize] =
@@ -246,9 +251,11 @@ impl Display {
             self.print_obj();
             self.ly = (self.ly + 1) % 154;
             self.stat %= LINE_DOTS;
-            if self.ly == 0x90
-            {
+            if self.ly == 0x90 {
                 ret_interrupt = DisplayInterrupt::Vblank;
+                if (self.lcd_interrupt_mode == 1) {
+                    ret_interrupt = DisplayInterrupt::Both;
+                }
                 if SystemTime::now()
                     .duration_since(self.last_dt)
                     .unwrap()
@@ -258,6 +265,9 @@ impl Display {
                     self.update();
                     self.last_dt = SystemTime::now();
                 }
+            }
+            if self.ly < 0x90 && (self.lcd_interrupt_mode == 0 || self.lcd_interrupt_mode == 2) {
+                ret_interrupt = DisplayInterrupt::Stat;
             }
 
             if self.lcd_interrupt_mode == 3 && self.ly == self.lyc + 1 {

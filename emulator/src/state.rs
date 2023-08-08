@@ -216,10 +216,10 @@ impl Memory {
         } else if addr == 0xffff {
             Ok(self.interrupts_register)
         } else {
-            // println!(
-            //     "Trying to read at address 0x{:04x} which is unimplemented",
-            //     addr
-            // );
+            println!(
+                "Trying to read at address 0x{:04x} which is unimplemented",
+                addr
+            );
             Ok(0) //Err(MemError::Unimplemented)
         }
     }
@@ -234,6 +234,9 @@ impl Memory {
             Ok(())
         } else if addr >= 0x4000 && addr < 0x6000 {
             self.ram_bank = value & 0b11;
+            Ok(())
+        } else if addr >= 0xa000 && addr < 0xc000 {
+            self.external_ram[self.ram_bank as usize * 0x2000 + addr as usize - 0xa000] = value;
             Ok(())
         } else if addr >= 0xc000 && addr < 0xd000 {
             self.wram_00[addr as usize - 0xc000] = value;
@@ -255,10 +258,11 @@ impl Memory {
             self.interrupts_register = value;
             Ok(())
         } else {
-            // println!(
-            //     "Trying to write at address 0x{:04x} which is unimplemented",
-            //     addr
-            // );
+            println!(
+                "Trying to write at address 0x{:04x} which is unimplemented (value: {:02x})",
+                addr,
+                value
+            );
             Ok(()) //Err(MemError::Unimplemented)
         }
     }
