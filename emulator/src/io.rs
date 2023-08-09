@@ -1,5 +1,6 @@
 use crate::state::{MemError, Memory};
 
+
 impl Memory {
     pub fn r_io(&self, addr: u8) -> u8 {
         // match addr {
@@ -31,10 +32,38 @@ impl Memory {
             0x40 => self.display.lcdc,
             0x42 => self.display.viewport_y,
             0x43 => self.display.viewport_x,
+            0x41 => {
+                let mut ret = match self.display.lcd_interrupt_mode {
+                    3 => 0b01000000, 
+                    2 => 0b00100000, 
+                    1 => 0b00010000, 
+                    0 => 0b00001000, 
+                    _ => 0
+                };
+
+                ret |= if self.display.ly > 0x90 {
+                    1
+                } else if self.display.stat < 80 {
+                    2
+                } else if self.display.stat < 280 {
+                    3
+                } else {
+                    0
+                };
+
+                if self.display.ly == self.display.lyc + 1 {
+                    ret |= 0b100;
+                }
+
+                ret
+            }
             0x44 => self.display.ly,
+            0x45 => self.display.lyc,
             0x47 => self.display.bg_palette,
             0x48 => self.display.obj_palettes[0],
             0x49 => self.display.obj_palettes[1],
+            0x4a => self.display.window_y,
+            0x4b => self.display.window_x,
             0x50 => {
                 if self.boot_rom_on {
                     0xfe
@@ -43,7 +72,7 @@ impl Memory {
                 }
             }
             _ => {
-                println!("Reading from 0xff{:02x} not implemented yet", addr);
+                // println!("Reading from 0xff{:02x} not implemented yet", addr);
                 0
             }
         }
@@ -198,8 +227,8 @@ impl Memory {
             0x47 => self.display.bg_palette = value,
             0x48 => self.display.obj_palettes[0] = value,
             0x49 => self.display.obj_palettes[1] = value,
-            0x4a => self.display.window_x = value,
-            0x4b => self.display.window_y = value,
+            0x4a => self.display.window_y = value,
+            0x4b => self.display.window_x = value,
             0x50 => self.boot_rom_on = value & 1 == 0 && self.boot_rom_on,
             _ => {
                 if addr < 0x30 || addr > 0x3f {

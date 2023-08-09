@@ -49,7 +49,7 @@ pub struct Display {
 
     last_dt: SystemTime,
 
-    stat: u64,
+    pub stat: u64,
 }
 
 impl Display {
@@ -176,19 +176,21 @@ impl Display {
             0
         };
 
-        let y_tile = (self.ly - self.window_y + 7) as usize;
+        let y_tile = (self.ly - self.window_y) as usize;
 
         for x in 0..32 {
             if tilemap_pointer + (y_tile / 8) * 32 + x >= 2048 {
                 return;
             }
             let tile = self.tilemaps[tilemap_pointer + (y_tile / 8) * 32 + x];
-            self.print_tile(
-                tile,
-                x as u8 * 8 + self.window_x,
-                self.ly,
-                (y_tile % 8) as usize,
-            );
+            if (x * 8 + self.window_x as usize - 7 < 160 && self.ly >= self.window_y) {
+                self.print_tile(
+                    tile,
+                    x as u8 * 8 + self.window_x - 7,
+                    self.ly,
+                    (y_tile % 8) as usize,
+                );
+            }
         }
     }
 
