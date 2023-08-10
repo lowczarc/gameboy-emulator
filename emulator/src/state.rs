@@ -92,6 +92,8 @@ pub struct Memory {
 
     pub ram_bank: u8,
 
+    pub ram_bank_enabled: bool,
+
     // 32 KiB ROM bank 00
     rom: [u8; 0x200000],
 
@@ -153,6 +155,7 @@ impl Memory {
             boot_rom_on: true,
             rom_bank: 1,
             ram_bank: 0,
+            ram_bank_enabled: false,
             rom: [0; 0x200000],
             wram_00: [0; 0x1000],
             wram_01: [0; 0x1000],
@@ -200,11 +203,13 @@ impl Memory {
         } else if addr < 0x8000 {
             Ok(self.rom[self.rom_bank as usize * 0x4000 + addr as usize - 0x4000 as usize])
         } else if addr >= 0xa000 && addr < 0xc000 {
-            Ok(self.external_ram[self.ram_bank as usize * 0x2000 + addr as usize - 0xa000])
+            if self.ram_bank_enabled {
+                Ok(self.external_ram[self.ram_bank as usize * 0x2000 + addr as usize - 0xa000])
+            } else {
+                Ok(0xff)
+            }
         } else if addr >= 0xc000 && addr < 0xd000 {
             Ok(self.wram_00[addr as usize - 0xc000])
-        } else if addr >= 0xe000 && addr < 0xf000 {
-            Ok(self.wram_00[addr as usize - 0xe000])
         } else if addr >= 0xd000 && addr < 0xe000 {
             Ok(self.wram_01[addr as usize - 0xd000])
         } else if (addr >= 0x8000 && addr < 0xa000) || (addr >= 0xfe00 && addr < 0xfea0) {
@@ -225,11 +230,14 @@ impl Memory {
     }
 
     pub fn w(&mut self, addr: u16, value: u8) -> Result<(), MemError> {
-        if addr >= 0x2000 && addr < 0x4000 {
+        if addr >= 0x0000 && addr < 0x2000 {
+            self.ram_bank_enabled = value == 0x0a;
+            Ok(())
+        } else if addr >= 0x2000 && addr < 0x4000 {
             if value == 0 {
                 self.rom_bank = 1
             } else {
-                self.rom_bank = value & 0b11111;
+                self.rom_bank = value & 0b1111111;
             }
             Ok(())
         } else if addr >= 0x4000 && addr < 0x6000 {
@@ -240,9 +248,6 @@ impl Memory {
             Ok(())
         } else if addr >= 0xc000 && addr < 0xd000 {
             self.wram_00[addr as usize - 0xc000] = value;
-            Ok(())
-        } else if addr >= 0xe000 && addr < 0xf000 {
-            self.wram_00[addr as usize - 0xe000] = value;
             Ok(())
         } else if addr >= 0xd000 && addr < 0xe000 {
             self.wram_01[addr as usize - 0xd000] = value;
@@ -260,8 +265,7 @@ impl Memory {
         } else {
             println!(
                 "Trying to write at address 0x{:04x} which is unimplemented (value: {:02x})",
-                addr,
-                value
+                addr, value
             );
             Ok(()) //Err(MemError::Unimplemented)
         }

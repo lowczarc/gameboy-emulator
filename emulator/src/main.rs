@@ -17,6 +17,21 @@ use std::{thread, time};
 pub fn exec_opcode(state: &mut GBState) -> Result<u64, MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
 
+    if state.mem.rom_bank == 0x0d && state.cpu.pc == 0x7da5 {
+        println!(
+            "[hDivisor]: {:02x} | [hDividend]: {:02x} | [hDividend+1]: {:02x}",
+            state.mem.r(0xff99)?,
+            state.mem.r(0xff95)?,
+            state.mem.r(0xff96)?,
+        );
+    }
+    if state.is_debug {
+        println!(
+            "{:02x}:{:04x} = {:02x} (IME: {})",
+            state.mem.rom_bank, state.cpu.pc, opcode, state.mem.ime
+        );
+    }
+
     state.cpu.pc += 1;
 
     let n1 = (opcode >> 3) & 0b111;
@@ -70,6 +85,7 @@ fn main() {
 
             let action_button_reg = gamepad.get_action_gamepad_reg();
             let direction_button_reg = gamepad.get_direction_gamepad_reg();
+            gamepad.check_special_actions(&mut state);
 
             state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
 

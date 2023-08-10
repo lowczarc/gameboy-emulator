@@ -1,3 +1,4 @@
+use crate::state::GBState;
 use gilrs::{Button, GamepadId, Gilrs};
 
 pub struct Gamepad {
@@ -22,6 +23,14 @@ impl Gamepad {
 
     pub fn update_events(&mut self) {
         while let Some(_) = self.gilrs.next_event() {}
+    }
+
+    pub fn check_special_actions(&self, state: &mut GBState) {
+        if let Some(gamepad_id) = self.gamepad_id {
+            if let Some(gamepad) = self.gilrs.connected_gamepad(gamepad_id) {
+                state.is_debug = gamepad.is_pressed(Button::West);
+            }
+        }
     }
 
     pub fn get_action_gamepad_reg(&self) -> u8 {

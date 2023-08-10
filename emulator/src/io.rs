@@ -1,6 +1,5 @@
 use crate::state::{MemError, Memory};
 
-
 impl Memory {
     pub fn r_io(&self, addr: u8) -> u8 {
         // match addr {
@@ -34,11 +33,11 @@ impl Memory {
             0x43 => self.display.viewport_x,
             0x41 => {
                 let mut ret = match self.display.lcd_interrupt_mode {
-                    3 => 0b01000000, 
-                    2 => 0b00100000, 
-                    1 => 0b00010000, 
-                    0 => 0b00001000, 
-                    _ => 0
+                    3 => 0b01000000,
+                    2 => 0b00100000,
+                    1 => 0b00010000,
+                    0 => 0b00001000,
+                    _ => 0,
                 };
 
                 ret |= if self.display.ly > 0x90 {
@@ -72,8 +71,8 @@ impl Memory {
                 }
             }
             _ => {
-                // println!("Reading from 0xff{:02x} not implemented yet", addr);
-                0
+                println!("Reading from 0xff{:02x} not implemented yet", addr);
+                self.io[addr as usize]
             }
         }
     }
@@ -236,6 +235,7 @@ impl Memory {
                 }
             } // self.io[addr as usize] = value,
         }
+        self.io[addr as usize] = value;
 
         if addr >= 0x30 && addr <= 0x3f {
             let i = (addr - 0x30) as usize;

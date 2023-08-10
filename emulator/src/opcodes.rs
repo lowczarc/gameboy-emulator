@@ -405,7 +405,7 @@ pub fn sbc(state: &mut GBState, x: u8) {
         state.cpu.r[reg::F as usize] |= flag::H;
     }
 
-    if x > state.cpu.r[reg::A as usize] - carry {
+    if x as i32 > state.cpu.r[reg::A as usize] as i32 - carry as i32 {
         state.cpu.r[reg::F as usize] |= flag::CY;
     }
 
