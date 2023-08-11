@@ -2,7 +2,7 @@ use crate::audio::Audio;
 use crate::consts::{BOOT_ROM_FILE, PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
 use crate::display::Display;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 
 pub mod reg {
     pub const B: u8 = 0;
@@ -191,6 +191,26 @@ impl Memory {
         f.read(&mut self.rom)?;
 
         println!("MBC: {:02x}", self.rom[0x147]);
+
+        Ok(())
+    }
+
+    pub fn load_external_ram(&mut self, file: &str) -> Result<(), std::io::Error> {
+        let mut f = File::open(file)?;
+
+        f.read(&mut self.external_ram)?;
+
+        println!("Save file loaded from \"{}\"!", file);
+
+        Ok(())
+    }
+
+    pub fn save_external_ram(&self, file: &str) -> Result<(), std::io::Error> {
+        let mut f = File::create(file)?;
+
+        f.write_all(&self.external_ram)?;
+
+        println!("Save written to \"{}\"!", file);
 
         Ok(())
     }

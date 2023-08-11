@@ -71,7 +71,7 @@ impl Memory {
                 }
             }
             _ => {
-                println!("Reading from 0xff{:02x} not implemented yet", addr);
+                // println!("Reading from 0xff{:02x} not implemented yet", addr);
                 self.io[addr as usize]
             }
         }
@@ -231,7 +231,7 @@ impl Memory {
             0x50 => self.boot_rom_on = value & 1 == 0 && self.boot_rom_on,
             _ => {
                 if addr < 0x30 || addr > 0x3f {
-                    println!("Writing to 0xff{:02x} not implemented yet ({:08b})", addr, value)
+                    // println!("Writing to 0xff{:02x} not implemented yet ({:08b})", addr, value)
                 }
             } // self.io[addr as usize] = value,
         }
