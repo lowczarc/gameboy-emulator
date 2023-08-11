@@ -1,11 +1,8 @@
 # 🎮 Gameboy Emulator 🎮
 
-**🚧 WORK IN PROGRESS 🚧**
-
 ![demo](demo.gif)
 
 My goal is to introduce myself to low level programming and emulators by writing a gameboy emulator in Rust 🦀.<br>
-For now it only can run Tetris and Dr.Mario.
 
 ## 🧰 Structure
 
@@ -27,7 +24,7 @@ git clone https://github.com/lowczarc/gameboy-emulator.git
 
 **Build and run the emulator (from within the `emulator/` directory):**
 ```sh
-cargo run <gameboy_rom>
+cargo run --release <gameboy_rom>
 ```
 
 ***NOTE:** You need to have a gamepad to play, I didn't implement keyboard inputs yet*
