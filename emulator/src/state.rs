@@ -1,5 +1,5 @@
 use crate::audio::Audio;
-use crate::consts::{BOOT_ROM_FILE, PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
+use crate::consts::{PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
 use crate::display::Display;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -177,12 +177,10 @@ impl Memory {
         }
     }
 
-    pub fn load_boot_rom(&mut self) -> Result<(), std::io::Error> {
-        let mut f = File::open(BOOT_ROM_FILE)?;
+    pub fn load_boot_rom(&mut self) {
+        let bytes = include_bytes!("../assets/boot.bin");
 
-        f.read(&mut self.boot_rom)?;
-
-        Ok(())
+        self.boot_rom.copy_from_slice(&bytes[..0x100]);
     }
 
     pub fn load_rom(&mut self, file: &str) -> Result<(), std::io::Error> {
@@ -305,7 +303,7 @@ impl GBState {
     pub fn new() -> Self {
         let mut mem = Memory::new();
 
-        mem.load_boot_rom().unwrap();
+        mem.load_boot_rom();
 
         Self {
             cpu: CPU::new(),
