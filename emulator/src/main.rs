@@ -6,10 +6,9 @@ pub mod interrupts_timers;
 pub mod io;
 pub mod opcodes;
 pub mod state;
-pub mod tests;
 
 use crate::gamepad::Gamepad;
-use crate::state::{reg, GBState, MemError};
+use crate::state::{GBState, MemError};
 use std::env;
 use std::time::SystemTime;
 use std::{thread, time};
@@ -84,7 +83,7 @@ fn main() {
 
         nanos_sleep += c as i128 * consts::CPU_CYCLE_LENGTH_NANOS as i128;
 
-        if (last_ram_bank_enabled && !state.mem.ram_bank_enabled) {
+        if last_ram_bank_enabled && !state.mem.ram_bank_enabled {
             println!("Saving to \"{}\"...", save_file);
 
             if let Err(_) = state.mem.save_external_ram(&save_file) {

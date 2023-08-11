@@ -250,7 +250,7 @@ impl Memory {
     }
 
     pub fn w(&mut self, addr: u16, value: u8) -> Result<(), MemError> {
-        if addr >= 0x0000 && addr < 0x2000 {
+        if addr < 0x2000 {
             self.ram_bank_enabled = value == 0x0a;
             Ok(())
         } else if addr >= 0x2000 && addr < 0x4000 {

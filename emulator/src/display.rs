@@ -183,7 +183,7 @@ impl Display {
                 return;
             }
             let tile = self.tilemaps[tilemap_pointer + (y_tile / 8) * 32 + x];
-            if (x * 8 + self.window_x as usize - 7 < 160 && self.ly >= self.window_y) {
+            if x * 8 + self.window_x as usize - 7 < 160 && self.ly >= self.window_y {
                 self.print_tile(
                     tile,
                     x as u8 * 8 + self.window_x - 7,
@@ -255,7 +255,7 @@ impl Display {
             self.stat %= LINE_DOTS;
             if self.ly == 0x90 {
                 ret_interrupt = DisplayInterrupt::Vblank;
-                if (self.lcd_interrupt_mode == 1) {
+                if self.lcd_interrupt_mode == 1 {
                     ret_interrupt = DisplayInterrupt::Both;
                 }
                 if SystemTime::now()
