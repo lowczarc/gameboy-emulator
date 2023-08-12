@@ -2,6 +2,7 @@
 name = "emulator"
 version = "0.1.0"
 edition = "2021"
+authors = ["Lancelot Owczarczak <lancelot@owczarczak.fr>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -9,6 +10,7 @@ edition = "2021"
 minifb = "0.24"
 rodio = "0.17"
 gilrs = "0.10.2"
+clap = { version = "4.3.21", features = ["derive"] }
 
 [profile.dev]
 overflow-checks = false

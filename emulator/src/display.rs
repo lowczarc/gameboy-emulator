@@ -8,9 +8,9 @@ const COLORS: [u32; 4] = [0x00e0f8d0, 0x0088c070, 0x346856, 0x00081820];
 const LINE_DOTS: u64 = 456;
 
 mod lcdc_flags {
-    pub const BG_PRIORITY: u8 = 0b1;
+    pub const _BG_PRIORITY: u8 = 0b1;
     pub const OBJ_ENABLE: u8 = 0b10;
-    pub const OBJ_SIZE: u8 = 0b100;
+    pub const _OBJ_SIZE: u8 = 0b100;
     pub const BG_TILEMAP_AREA: u8 = 0b1000;
     pub const BG_TILEDATA_AREA: u8 = 0b10000;
     pub const WIN_ENABLE: u8 = 0b100000;

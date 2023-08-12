@@ -9,9 +9,9 @@ pub mod state;
 
 use crate::gamepad::Gamepad;
 use crate::state::{GBState, MemError};
-use std::env;
-use std::time::SystemTime;
-use std::{thread, time};
+use std::time::{SystemTime};
+use std::{time, thread};
+use clap::{Parser};
 
 pub fn exec_opcode(state: &mut GBState) -> Result<u64, MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
@@ -37,25 +37,34 @@ pub fn exec_opcode(state: &mut GBState) -> Result<u64, MemError> {
     }
 }
 
-fn main() {
-    if env::args().len() < 2 {
-        println!("Usage: gameboy-emulator <rom.gb>");
-        return;
-    }
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    /// The gameboy rom file
+    rom: String,
 
-    let rom = env::args().nth(1);
+    /// Setting this saves battery by using thread::sleep instead of spin_sleeping. It can result in lag and inconsistent timing.
+    #[arg(long)]
+    thread_sleep: bool,
+
+    #[arg(short, long, default_value_t = 1.0)]
+    speed: f32,
+}
+
+fn main() {
+    let cli = Cli::parse();
 
     println!("Initializing Gamepad...");
 
     let mut gamepad = Gamepad::new();
 
-    println!("Starting {:?}...", rom.clone().unwrap());
+    println!("Starting {:?}...", &cli.rom);
 
     let mut state = GBState::new();
 
-    let save_file = format!("{}.sav", rom.clone().unwrap());
+    let save_file = format!("{}.sav", &cli.rom);
 
-    state.mem.load_rom(&rom.unwrap()).unwrap();
+    state.mem.load_rom(&cli.rom).unwrap();
 
     if let Err(_) = state.mem.load_external_ram(&save_file) {
         println!(
@@ -81,7 +90,7 @@ fn main() {
         state.update_display_interrupts(c);
         state.check_interrupts().unwrap();
 
-        nanos_sleep += c as i128 * consts::CPU_CYCLE_LENGTH_NANOS as i128;
+        nanos_sleep += c as i128 * (consts::CPU_CYCLE_LENGTH_NANOS as f32 / cli.speed) as i128;
 
         if last_ram_bank_enabled && !state.mem.ram_bank_enabled {
             println!("Saving to \"{}\"...", save_file);
@@ -92,7 +101,7 @@ fn main() {
         }
         last_ram_bank_enabled = state.mem.ram_bank_enabled;
 
-        if nanos_sleep > 10000 {
+        if nanos_sleep > 0 {
             gamepad.update_events();
 
             let action_button_reg = gamepad.get_action_gamepad_reg();
@@ -108,7 +117,12 @@ fn main() {
             state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
 
 
-            thread::sleep(time::Duration::from_nanos(nanos_sleep as u64 / 10));
+
+            if cli.thread_sleep {
+                thread::sleep(time::Duration::from_nanos(nanos_sleep as u64 / 10));
+            } else {
+                while SystemTime::now().duration_since(now).unwrap().as_nanos() < nanos_sleep as u128 {}
+            }
 
             nanos_sleep =
                 nanos_sleep - SystemTime::now().duration_since(now).unwrap().as_nanos() as i128;
