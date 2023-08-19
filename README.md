@@ -6,17 +6,14 @@ My goal is to introduce myself to low level programming and emulators by writing
 
 ## 🧰 Structure
 
-In exactly the same way as the [Chip8 emulator](https://github.com/lowczarc/chip-8-emulator) I wrote before
-
 - `emulator/` - This contains the main Gameboy emulator. You'll find all of the necessary files and the core logic inside this folder.
-- `asm/` - This is an assembler for the Gameboy, written in Python 🐍.
-
-After doing it twice, I would recommend to do it this way if you plan to write an emulator: start with the assembler before writing the emulator. You will have a better understanding of the capabilities of the CPU and will already have a good idea for how the opcodes are structured.
+- `asm/` - This is an assembler for the Gameboy, written in Python 🐍, made before starting the emulator. It's very basic and I made it only to list and understand each opcodes.
 
 ## 🚀 Getting started
 
 If you want to try this out or play around with the code, you can do the following:
 
+### 🎮 Emulator
 **Clone the repository:**
 ```sh
 git clone https://github.com/lowczarc/gameboy-emulator.git
@@ -29,7 +26,15 @@ cargo run --release <gameboy_rom>
 
 ***NOTE:** You need to have a gamepad to play, I didn't implement keyboard inputs yet*
 
-There are some examples of roms in the `asm/` directory and a ton of them you can find using the power of the *information superhighway*.
+By default the emulator will spin lock instead of using thread::sleep.<br>
+If you're on battery or the 100% CPU usage bothers you, you can use the `--thread-sleep` option, though it might cause some lags and inaccurate timing.
+```sh
+cargo run --release <gameboy_rom> --thread-sleep
+```
+
+### 🧑‍💻 Assembler
+
+There are some (not very interesting) examples of roms in the `asm/` directory and a ton of them you can find using the power of the *information superhighway*.
 
 **Run the assembler (from within the `asm/` directory):**
 ```sh
