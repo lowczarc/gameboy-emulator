@@ -125,6 +125,11 @@ impl Memory {
             0x0f => {
                 self.io[0x0f] = value;
             }
+            0x10 => {
+                self.audio.ch1.period_sweep_pace = (0b1110000 & value) >> 4;
+                self.audio.ch1.period_sweep_direction = (0b1000 & value) >> 3;
+                self.audio.ch1.period_sweep_slope = 0b111 & value;
+            }
             0x11 => {
                 self.audio.ch1.duty = value >> 6;
                 self.audio.ch1.length_timer = value & 0b111111;

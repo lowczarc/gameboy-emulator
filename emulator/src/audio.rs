@@ -45,6 +45,10 @@ pub struct Wave {
     env_initial_volume: f32,
     env_direction: f32,
     env_sweep_pace: u8,
+
+    period_sweep_pace: u8,
+    period_sweep_direction: u8,
+    period_sweep_slope: u8,
 }
 
 impl Wave {
@@ -56,6 +60,9 @@ impl Wave {
         env_sweep_pace: u8,
         length_timer: u8,
         length_timer_enabled: bool,
+        period_sweep_pace: u8,
+        period_sweep_direction: u8,
+        period_sweep_slope: u8,
     ) -> Wave {
         Wave {
             period_value,
@@ -66,6 +73,9 @@ impl Wave {
             env_sweep_pace,
             length_timer,
             length_timer_enabled,
+            period_sweep_pace,
+            period_sweep_direction,
+            period_sweep_slope,
         }
     }
 }
@@ -76,7 +86,9 @@ impl Iterator for Wave {
     fn next(&mut self) -> Option<f32> {
         self.num_sample = self.num_sample.wrapping_add(1);
 
-        if self.period_value == 0 {
+        let mut period_value = self.period_value;
+
+        if period_value == 0 {
             return None;
         }
 
@@ -85,6 +97,32 @@ impl Iterator for Wave {
             && SAMPLE_RATE * (64 - self.length_timer as u32) / 256 < self.num_sample as u32
         {
             return None;
+        }
+
+        if self.period_sweep_slope != 0 && self.period_sweep_pace != 0 {
+            let sweep_i = ((self.num_sample as f32 * (32768 as f32 / SAMPLE_RATE as f32)) as u32
+                / 256)
+                / self.period_sweep_pace as u32;
+
+            if self.period_sweep_direction == 0 {
+                period_value = 2048
+                    - ((2048 - period_value) as f32
+                        * f32::powf(
+                            f32::powf(2., -(self.period_sweep_slope as f32)) + 1.,
+                            sweep_i as f32,
+                        )) as u16;
+            } else {
+                period_value = 2048
+                    - ((2048 - period_value) as f32
+                        * f32::powf(
+                            -f32::powf(2., -(self.period_sweep_slope as f32)) + 1.,
+                            sweep_i as f32,
+                        )) as u16;
+            }
+
+            if period_value > 2048 {
+                return None;
+            }
         }
 
         let envelope_time = if self.env_sweep_pace != 0 {
@@ -109,7 +147,7 @@ impl Iterator for Wave {
             if self.num_sample as i32 + n as i32 - SAMPLE_AVERAGING as i32 >= 0 {
                 avg += (self.wave_pattern[(((8. * 32768. / (SAMPLE_RATE as f32)
                     * (self.num_sample + n - (SAMPLE_AVERAGING / 2)) as f32
-                    / self.period_value as f32)
+                    / period_value as f32)
                     * 16.)
                     % 32.) as u8 as usize] as f32
                     * 2.
@@ -153,6 +191,8 @@ impl Iterator for MutableWave {
             if let Some(wave) = wave_o.as_mut() {
                 if let Some(result) = wave.next() {
                     res += result / 4.;
+                } else {
+                    *wave_o = None;
                 }
             }
         }
@@ -161,6 +201,8 @@ impl Iterator for MutableWave {
             if let Some(wave) = wave_o.as_mut() {
                 if let Some(result) = wave.next() {
                     res += result / 4.;
+                } else {
+                    *wave_o = None;
                 }
             }
         }
@@ -169,6 +211,8 @@ impl Iterator for MutableWave {
             if let Some(wave) = wave_o.as_mut() {
                 if let Some(result) = wave.next() {
                     res += result / 4.;
+                } else {
+                    *wave_o = None;
                 }
             }
         }
@@ -206,6 +250,9 @@ pub struct AudioSquareChannel {
     pub initial_volume: u8,
     pub env_direction: u8,
     pub sweep: u8,
+    pub period_sweep_pace: u8,
+    pub period_sweep_direction: u8,
+    pub period_sweep_slope: u8,
 }
 
 impl AudioSquareChannel {
@@ -220,6 +267,9 @@ impl AudioSquareChannel {
             wave,
             length_timer: 0,
             length_timer_enabled: false,
+            period_sweep_pace: 0,
+            period_sweep_direction: 0,
+            period_sweep_slope: 0,
         }
     }
 
@@ -234,6 +284,9 @@ impl AudioSquareChannel {
                     self.sweep,
                     self.length_timer,
                     self.length_timer_enabled,
+                    self.period_sweep_pace,
+                    self.period_sweep_direction,
+                    self.period_sweep_slope,
                 ));
             } else {
                 *wave = None;
@@ -283,6 +336,9 @@ impl AudioCustomChannel {
                     self.sweep,
                     self.length_timer,
                     self.length_timer_enabled,
+                    0,
+                    0,
+                    0,
                 ));
             } else {
                 *wave = None;
