@@ -2,23 +2,6 @@ use crate::state::{MemError, Memory};
 
 impl Memory {
     pub fn r_io(&self, addr: u8) -> u8 {
-        // match addr {
-        //     0x00 => println!("READ Joypad"),
-        //     0x0f => println!("Write Interrupt flag"),
-        //     0x11 => println!("READ Sound channel 1 length timer & duty cycle"),
-        //     0x12 => println!("READ Sound channel 1 volume & envelope"),
-        //     0x24 => println!("READ Master volume & VIN panning"),
-        //     0x25 => println!("READ Sound panning"),
-        //     0x26 => println!("READ Sound on/off"),
-        //     0x40 => println!("READ LCD Control"),
-        //     0x42 => (), // println!("READ Viewport Y Position"),
-        //     0x43 => println!("READ Viewport X Position"),
-        //     0x44 => (), // println!("READ LCD Y Coordinate ({})", self.display.ly),
-        //     0x47 => println!("READ BG palette data"),
-        //     0xff => println!("READ Interrupt enable"),
-        //     _ => println!("Unknowned READ in IO register at address 0xff{:02x}", addr),
-        // }
-
         match addr {
             0x00 => {
                 if self.joypad_is_action {
@@ -78,33 +61,6 @@ impl Memory {
     }
 
     pub fn w_io(&mut self, addr: u8, value: u8) -> Result<(), MemError> {
-        // println!(
-        //     "Trying to write 0b{:08b} in IO register at address 0xff{:02x}",
-        //     value, addr
-        // );
-        // match addr {
-        //     0x00 => println!("WRITE Joypad"),
-        //     0x0f => println!("Write Interrupt flag"),
-        //     0x11 => println!("WRITE Sound channel 1 length timer & duty cycle"),
-        //     0x12 => println!("WRITE Sound channel 1 volume & envelope"),
-        //     0x13 => println!("WRITE Sound channel 1 period low"),
-        //     0x14 => println!("WRITE Sound channel 1 period high & control"),
-        //     0x16 => println!("WRITE Sound channel 2 length timer & duty cycle"),
-        //     0x17 => println!("WRITE Sound channel 2 volume & envelope"),
-        //     0x18 => println!("WRITE Sound channel 2 period low"),
-        //     0x19 => println!("WRITE Sound channel 2 period high & control"),
-        //     0x24 => println!("WRITE Master volume & VIN panning"),
-        //     0x25 => println!("WRITE Sound panning"),
-        //     0x26 => println!("WRITE Sound on/off"),
-        //     0x40 => println!("WRITE LCD Control"),
-        //     0x42 => (), // println!("WRITE Viewport Y Position"),
-        //     0x43 => println!("WRITE Viewport X Position"),
-        //     0x47 => println!("WRITE BG palette data"),
-        //     0x50 => println!("WRITE Unmount boot ROM "),
-        //     0xff => println!("Write Interrupt enable"),
-        //     _ => println!("WRITE IDK Yet {:02x}", addr),
-        // }
-
         match addr {
             0x00 => {
                 self.joypad_is_action = !value & 0b00100000 != 0;
@@ -204,6 +160,25 @@ impl Memory {
                     self.audio.ch3.update();
                 }
             }
+            0x20 => {
+                self.audio.ch4.length_timer = value & 0b111111;
+            }
+            0x21 => {
+                self.audio.ch4.initial_volume = value >> 4;
+                self.audio.ch4.env_direction = (value & 0xf) >> 3;
+                self.audio.ch4.sweep = value & 0b111;
+            }
+            0x22 => {
+                self.audio.ch4.clock_shift = value >> 4;
+                self.audio.ch4.lsfr_width = (value & 0xf) >> 3;
+                self.audio.ch4.clock_divider = value & 0b111;
+            }
+            0x23 => {
+                self.audio.ch4.length_timer_enabled = value & 0b01000000 != 0;
+                if value >> 7 == 1 {
+                    self.audio.ch4.update();
+                }
+            }
             0x40 => self.display.lcdc = value,
             0x41 => {
                 if value & 0b01000000 != 0 {
@@ -234,11 +209,7 @@ impl Memory {
             0x4a => self.display.window_y = value,
             0x4b => self.display.window_x = value,
             0x50 => self.boot_rom_on = value & 1 == 0 && self.boot_rom_on,
-            _ => {
-                if addr < 0x30 || addr > 0x3f {
-                    // println!("Writing to 0xff{:02x} not implemented yet ({:08b})", addr, value)
-                }
-            } // self.io[addr as usize] = value,
+            _ => {}
         }
         self.io[addr as usize] = value;
 
