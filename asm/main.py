@@ -1,205 +1,219 @@
 import argparse
 
+def padTo(args, addr):
+    if (args[0] == 0):
+        raise ValueError(".PADTO with label or to 0x0000 is not allowed")
+
+    if (addr > args[0]):
+        raise ValueError(".PADTO cannot pad to 0x{:04x} when starting from 0x{:04x}".format(args[0], addr))
+
+    return (args[0] - addr) * [0]
+
 instructions = [
     { "opcode": "LD", "params": [
-        { "type": ["r", "r"], "format": lambda args: [0b01000000 | (args[0] << 3) | args[1]] },
-        { "type": ["r", "8b"], "format": lambda args: [0b00000110 | (args[0] << 3), args[1]] },
-        { "type": ["r", "(HL)"], "format": lambda args: [0b01000110 | (args[0] << 3)] },
-        { "type": ["(HL)", "r"], "format": lambda args: [0b01110000 | args[1]] },
-        { "type": ["(HL)", "8b"], "format": lambda args: [0b00110110, args[1]] },
-        { "type": ["A", "(BC)"], "format": lambda args: [0b00001010] },
-        { "type": ["A", "(DE)"], "format": lambda args: [0b00011010] },
-        { "type": ["(BC)", "A"], "format": lambda args: [0b00000010] },
-        { "type": ["(DE)", "A"], "format": lambda args: [0b00010010] },
-        { "type": ["A", "(nn)"], "format": lambda args: [0b11111010, args[1] & 0xff, args[1] >> 8] },
-        { "type": ["(nn)", "A"], "format": lambda args: [0b11101010, args[0] & 0xff, args[0] >> 8] },
-        { "type": ["A", "(C)"], "format": lambda args: [0b11110010] },
-        { "type": ["(C)", "A"], "format": lambda args: [0b11100010] },
-        { "type": ["A", "(n)"], "format": lambda args: [0b11110000, args[1]] },
-        { "type": ["(n)", "A"], "format": lambda args: [0b11100000, args[0]] },
-        { "type": ["A", "(HL-)"], "format": lambda args: [0b00111010] },
-        { "type": ["(HL-)", "A"], "format": lambda args: [0b00110010] },
-        { "type": ["A", "(HL+)"], "format": lambda args: [0b00101010] },
-        { "type": ["(HL+)", "A"], "format": lambda args: [0b00100010] },
-        { "type": ["rr", "16b"], "format": lambda args: [0b00000001 | (args[0] << 4), args[1] & 0xff, args[1] >> 8] },
-        { "type": ["(nn)", "SP"], "format": lambda args: [0b00001000, args[0] & 0xff, args[0] >> 8] },
-        { "type": ["SP", "HL"], "format": lambda args: [0b11111001] },
-        { "type": ["HL", "8b"], "format": lambda args: [0b11111000, args[1]] },
+        { "type": ["r", "r"], "format": lambda args, _: [0b01000000 | (args[0] << 3) | args[1]] },
+        { "type": ["r", "8b"], "format": lambda args, _: [0b00000110 | (args[0] << 3), args[1]] },
+        { "type": ["r", "(HL)"], "format": lambda args, _: [0b01000110 | (args[0] << 3)] },
+        { "type": ["(HL)", "r"], "format": lambda args, _: [0b01110000 | args[1]] },
+        { "type": ["(HL)", "8b"], "format": lambda args, _: [0b00110110, args[1]] },
+        { "type": ["A", "(BC)"], "format": lambda args, _: [0b00001010] },
+        { "type": ["A", "(DE)"], "format": lambda args, _: [0b00011010] },
+        { "type": ["(BC)", "A"], "format": lambda args, _: [0b00000010] },
+        { "type": ["(DE)", "A"], "format": lambda args, _: [0b00010010] },
+        { "type": ["A", "(nn)"], "format": lambda args, _: [0b11111010, args[1] & 0xff, args[1] >> 8] },
+        { "type": ["(nn)", "A"], "format": lambda args, _: [0b11101010, args[0] & 0xff, args[0] >> 8] },
+        { "type": ["A", "(C)"], "format": lambda args, _: [0b11110010] },
+        { "type": ["(C)", "A"], "format": lambda args, _: [0b11100010] },
+        { "type": ["A", "(n)"], "format": lambda args, _: [0b11110000, args[1]] },
+        { "type": ["(n)", "A"], "format": lambda args, _: [0b11100000, args[0]] },
+        { "type": ["A", "(HL-)"], "format": lambda args, _: [0b00111010] },
+        { "type": ["(HL-)", "A"], "format": lambda args, _: [0b00110010] },
+        { "type": ["A", "(HL+)"], "format": lambda args, _: [0b00101010] },
+        { "type": ["(HL+)", "A"], "format": lambda args, _: [0b00100010] },
+        { "type": ["rr", "16b"], "format": lambda args, _: [0b00000001 | (args[0] << 4), args[1] & 0xff, args[1] >> 8] },
+        { "type": ["(nn)", "SP"], "format": lambda args, _: [0b00001000, args[0] & 0xff, args[0] >> 8] },
+        { "type": ["SP", "HL"], "format": lambda args, _: [0b11111001] },
+        { "type": ["HL", "8b"], "format": lambda args, _: [0b11111000, args[1]] },
     ]},
     { "opcode": "PUSH", "params": [
-        { "type": ["rr"], "format": lambda args: [0b11000101 | (args[0] << 4)] },
+        { "type": ["rr"], "format": lambda args, _: [0b11000101 | (args[0] << 4)] },
     ]},
     { "opcode": "POP", "params": [
-        { "type": ["rr"], "format": lambda args: [0b11000001 | (args[0] << 4)] },
+        { "type": ["rr"], "format": lambda args, _: [0b11000001 | (args[0] << 4)] },
     ]},
     { "opcode": "ADD", "params": [
-        { "type": ["r"], "format": lambda args: [0b10000000 | (args[0])] },
-        { "type": ["(HL)"], "format": lambda args: [0b10000110] },
-        { "type": ["8b"], "format": lambda args: [0b11000110, args[0]] },
-        { "type": ["SP", "8b"], "format": lambda args: [0b11101000, args[1]] },
+        { "type": ["r"], "format": lambda args, _: [0b10000000 | (args[0])] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b10000110] },
+        { "type": ["8b"], "format": lambda args, _: [0b11000110, args[0]] },
+        { "type": ["SP", "8b"], "format": lambda args, _: [0b11101000, args[1]] },
 
         # TODO: HL,rr (x9 ?)
     ]},
     { "opcode": "ADC", "params": [
-        { "type": ["r"], "format": lambda args: [0b10001000 | args[0]] },
-        { "type": ["(HL)"], "format": lambda args: [0b10001110] },
-        { "type": ["8b"], "format": lambda args: [0b11001110, args[0]] },
+        { "type": ["r"], "format": lambda args, _: [0b10001000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b10001110] },
+        { "type": ["8b"], "format": lambda args, _: [0b11001110, args[0]] },
     ]},
     { "opcode": "SUB", "params": [
-        { "type": ["r"], "format": lambda args: [0b10010000 | (args[0])] },
-        { "type": ["(HL)"], "format": lambda args: [0b10010110] },
-        { "type": ["8b"], "format": lambda args: [0b11010110, args[0]] },
+        { "type": ["r"], "format": lambda args, _: [0b10010000 | (args[0])] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b10010110] },
+        { "type": ["8b"], "format": lambda args, _: [0b11010110, args[0]] },
     ]},
     { "opcode": "SBC", "params": [
-        { "type": ["r"], "format": lambda args: [0b10011000 | args[0]] },
-        { "type": ["(HL)"], "format": lambda args: [0b10011110] },
-        { "type": ["8b"], "format": lambda args: [0b11011110, args[0]] },
+        { "type": ["r"], "format": lambda args, _: [0b10011000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b10011110] },
+        { "type": ["8b"], "format": lambda args, _: [0b11011110, args[0]] },
     ]},
     { "opcode": "CP", "params": [
-        { "type": ["r"], "format": lambda args: [0b10111000 | (args[0])] },
-        { "type": ["(HL)"], "format": lambda args: [0b10111110] },
-        { "type": ["8b"], "format": lambda args: [0b11111110, args[0]] },
+        { "type": ["r"], "format": lambda args, _: [0b10111000 | (args[0])] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b10111110] },
+        { "type": ["8b"], "format": lambda args, _: [0b11111110, args[0]] },
     ]},
     { "opcode": "INC", "params": [
-        { "type": ["r"], "format": lambda args: [0b00000100 | (args[0] << 3)] },
-        { "type": ["(HL)"], "format": lambda args: [0b00110100] },
+        { "type": ["r"], "format": lambda args, _: [0b00000100 | (args[0] << 3)] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b00110100] },
 
         # THIS ONE IS SPECULATIVE
-        { "type": ["rr"], "format": lambda args: [0b00000011 | (args[0] << 4)] },
+        { "type": ["rr"], "format": lambda args, _: [0b00000011 | (args[0] << 4)] },
     ]},
     { "opcode": "DEC", "params": [
-        { "type": ["r"], "format": lambda args: [0b00000101 | (args[0] << 3)] },
-        { "type": ["(HL)"], "format": lambda args: [0b00110101] },
+        { "type": ["r"], "format": lambda args, _: [0b00000101 | (args[0] << 3)] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b00110101] },
 
         # TODO: rr
     ]},
     { "opcode": "AND", "params": [
-        { "type": ["r"], "format": lambda args: [0b10100000 | (args[0])] },
-        { "type": ["(HL)"], "format": lambda args: [0b10100110] },
-        { "type": ["8b"], "format": lambda args: [0b11100110, args[0]] },
+        { "type": ["r"], "format": lambda args, _: [0b10100000 | (args[0])] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b10100110] },
+        { "type": ["8b"], "format": lambda args, _: [0b11100110, args[0]] },
     ]},
     { "opcode": "OR", "params": [
-        { "type": ["r"], "format": lambda args: [0b10110000 | (args[0])] },
-        { "type": ["(HL)"], "format": lambda args: [0b10110110] },
-        { "type": ["8b"], "format": lambda args: [0b11110110, args[0]] },
+        { "type": ["r"], "format": lambda args, _: [0b10110000 | (args[0])] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b10110110] },
+        { "type": ["8b"], "format": lambda args, _: [0b11110110, args[0]] },
     ]},
     { "opcode": "XOR", "params": [
-        { "type": ["r"], "format": lambda args: [0b10101000 | (args[0])] },
-        { "type": ["(HL)"], "format": lambda args: [0b10101110] },
-        { "type": ["8b"], "format": lambda args: [0b11101110, args[0]] },
+        { "type": ["r"], "format": lambda args, _: [0b10101000 | (args[0])] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b10101110] },
+        { "type": ["8b"], "format": lambda args, _: [0b11101110, args[0]] },
     ]},
     { "opcode": "CCF", "params": [
-        { "type": [], "format": lambda args: [0b00111111] },
+        { "type": [], "format": lambda args, _: [0b00111111] },
     ]},
     { "opcode": "SCF", "params": [
-        { "type": [], "format": lambda args: [0b00110111] },
+        { "type": [], "format": lambda args, _: [0b00110111] },
     ]},
     { "opcode": "DAA", "params": [
-        { "type": [], "format": lambda args: [0b00100111] },
+        { "type": [], "format": lambda args, _: [0b00100111] },
     ]},
     { "opcode": "CPL", "params": [
-        { "type": [], "format": lambda args: [0b00101111] },
+        { "type": [], "format": lambda args, _: [0b00101111] },
     ]},
     { "opcode": "JP", "params": [
-        { "type": ["16b"], "format": lambda args: [0b11000011, args[0] & 0xff, args[0] >> 8] },
-        { "type": ["HL"], "format": lambda args: [0b11101001] },
-        { "type": ["cc", "16b"], "format": lambda args: [0b11000010 | (args[0] << 3), args[1] & 0xff, args[1] >> 8] }
+        { "type": ["16b"], "format": lambda args, _: [0b11000011, args[0] & 0xff, args[0] >> 8] },
+        { "type": ["HL"], "format": lambda args, _: [0b11101001] },
+        { "type": ["cc", "16b"], "format": lambda args, _: [0b11000010 | (args[0] << 3), args[1] & 0xff, args[1] >> 8] }
     ]},
     { "opcode": "JR", "params": [
-        { "type": ["8b"], "format": lambda args: [0b00011000, args[0]] },
-        { "type": ["cc", "8b"], "format": lambda args: [0b00100000 | (args[0] << 3), args[1]] }
+        { "type": ["8b"], "format": lambda args, _: [0b00011000, args[0]] },
+        { "type": ["16b"], "format": lambda args, addr: [0b00011000, (args[0] - addr - 2) & 0xff] },
+        { "type": ["cc", "8b"], "format": lambda args, _: [0b00100000 | (args[0] << 3), args[1]] },
+        { "type": ["cc", "16b"], "format": lambda args, addr: [0b00100000 | (args[0] << 3), (args[1] - addr - 2) & 0xff] }
     ]},
     { "opcode": "CALL", "params": [
-        { "type": ["16b"], "format": lambda args: [0b11001101, args[0] & 0xff, args[0] >> 8] },
-        { "type": ["cc", "16b"], "format": lambda args: [0b11000100 | (args[0] << 3), args[1] & 0xff, args[1] >> 8] }
+        { "type": ["16b"], "format": lambda args, _: [0b11001101, args[0] & 0xff, args[0] >> 8] },
+        { "type": ["cc", "16b"], "format": lambda args, _: [0b11000100 | (args[0] << 3), args[1] & 0xff, args[1] >> 8] }
     ]},
     { "opcode": "RET", "params": [
-        { "type": [], "format": lambda args: [0b11001001] },
-        { "type": ["cc"], "format": lambda args: [0b11000000 | (args[0] << 3)] },
+        { "type": [], "format": lambda args, _: [0b11001001] },
+        { "type": ["cc"], "format": lambda args, _: [0b11000000 | (args[0] << 3)] },
     ]},
     { "opcode": "RETI", "params": [
-        { "type": [], "format": lambda args: [0b11011001] },
+        { "type": [], "format": lambda args, _: [0b11011001] },
     ]},
     { "opcode": "RST", "params": [
-        { "type": ["n"], "format": lambda args: [0b11000111 | (args[0] << 3)] },
+        { "type": ["n"], "format": lambda args, _: [0b11000111 | (args[0] << 3)] },
     ]},
     { "opcode": "DI", "params": [
-        { "type": [], "format": lambda args: [0b11110011] },
+        { "type": [], "format": lambda args, _: [0b11110011] },
     ]},
     { "opcode": "EI", "params": [
-        { "type": [], "format": lambda args: [0b11111011] },
+        { "type": [], "format": lambda args, _: [0b11111011] },
     ]},
     { "opcode": "NOP", "params": [
-        { "type": [], "format": lambda args: [0b00000000] },
+        { "type": [], "format": lambda args, _: [0b00000000] },
     ]},
     { "opcode": "HALT", "params": [
-        { "type": [], "format": lambda args: [0b01110110] },
+        { "type": [], "format": lambda args, _: [0b01110110] },
     ]},
     { "opcode": "STOP", "params": [
-        { "type": [], "format": lambda args: [0b00010000, 0b00000000] },
+        { "type": [], "format": lambda args, _: [0b00010000, 0b00000000] },
     ]},
     { "opcode": "RLCA", "params": [
-        { "type": [], "format": lambda args: [0b00000111] },
+        { "type": [], "format": lambda args, _: [0b00000111] },
     ]},
     { "opcode": "RLA", "params": [
-        { "type": [], "format": lambda args: [0b00010111] },
+        { "type": [], "format": lambda args, _: [0b00010111] },
     ]},
     { "opcode": "RRCA", "params": [
-        { "type": [], "format": lambda args: [0b00001111] },
+        { "type": [], "format": lambda args, _: [0b00001111] },
     ]},
     { "opcode": "RRA", "params": [
-        { "type": [], "format": lambda args: [0b00011111] },
+        { "type": [], "format": lambda args, _: [0b00011111] },
     ]},
     { "opcode": "BIT", "params": [
-        { "type": ["n", "r"], "format": lambda args: [0b11001011, 0b01000000 | (args[0] << 3) | args[1]] },
-        { "type": ["n", "(HL)"], "format": lambda args: [0b11001011, 0b01000110 | (args[0] << 3)] },
+        { "type": ["n", "r"], "format": lambda args, _: [0b11001011, 0b01000000 | (args[0] << 3) | args[1]] },
+        { "type": ["n", "(HL)"], "format": lambda args, _: [0b11001011, 0b01000110 | (args[0] << 3)] },
     ]},
     { "opcode": "SET", "params": [
-        { "type": ["n", "r"], "format": lambda args: [0b11001011, 0b11000000 | (args[0] << 3) | args[1]] },
-        { "type": ["n", "(HL)"], "format": lambda args: [0b11001011, 0b11000110 | (args[0] << 3)] },
+        { "type": ["n", "r"], "format": lambda args, _: [0b11001011, 0b11000000 | (args[0] << 3) | args[1]] },
+        { "type": ["n", "(HL)"], "format": lambda args, _: [0b11001011, 0b11000110 | (args[0] << 3)] },
     ]},
     { "opcode": "RES", "params": [
-        { "type": ["n", "r"], "format": lambda args: [0b11001011, 0b10000000 | (args[0] << 3) | args[1]] },
-        { "type": ["n", "(HL)"], "format": lambda args: [0b11001011, 0b10000110 | (args[0] << 3)] },
+        { "type": ["n", "r"], "format": lambda args, _: [0b11001011, 0b10000000 | (args[0] << 3) | args[1]] },
+        { "type": ["n", "(HL)"], "format": lambda args, _: [0b11001011, 0b10000110 | (args[0] << 3)] },
     ]},
     { "opcode": "RLC", "params": [
-        { "type": ["r"], "format": lambda args: [0b11001011, 0b00000000 | args[0]] },
-        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00000110] },
+        { "type": ["r"], "format": lambda args, _: [0b11001011, 0b00000000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b11001011, 0b00000110] },
     ]},
     { "opcode": "RL", "params": [
-        { "type": ["r"], "format": lambda args: [0b11001011, 0b00010000 | args[0]] },
-        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00010110] },
+        { "type": ["r"], "format": lambda args, _: [0b11001011, 0b00010000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b11001011, 0b00010110] },
     ]},
     { "opcode": "RRC", "params": [
-        { "type": ["r"], "format": lambda args: [0b11001011, 0b00001000 | args[0]] },
-        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00001110] },
+        { "type": ["r"], "format": lambda args, _: [0b11001011, 0b00001000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b11001011, 0b00001110] },
     ]},
     { "opcode": "RR", "params": [
-        { "type": ["r"], "format": lambda args: [0b11001011, 0b00011000 | args[0]] },
-        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00011110] },
+        { "type": ["r"], "format": lambda args, _: [0b11001011, 0b00011000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b11001011, 0b00011110] },
     ]},
     { "opcode": "SLA", "params": [
-        { "type": ["r"], "format": lambda args: [0b11001011, 0b00100000 | args[0]] },
-        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00100110] },
+        { "type": ["r"], "format": lambda args, _: [0b11001011, 0b00100000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b11001011, 0b00100110] },
     ]},
     { "opcode": "SWAP", "params": [
-        { "type": ["r"], "format": lambda args: [0b11001011, 0b00110000 | args[0]] },
-        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00110110] },
+        { "type": ["r"], "format": lambda args, _: [0b11001011, 0b00110000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b11001011, 0b00110110] },
     ]},
     { "opcode": "SRA", "params": [
-        { "type": ["r"], "format": lambda args: [0b11001011, 0b00101000 | args[0]] },
-        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00101110] },
+        { "type": ["r"], "format": lambda args, _: [0b11001011, 0b00101000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b11001011, 0b00101110] },
     ]},
     { "opcode": "SRL", "params": [
-        { "type": ["r"], "format": lambda args: [0b11001011, 0b00111000 | args[0]] },
-        { "type": ["(HL)"], "format": lambda args: [0b11001011, 0b00111110] },
+        { "type": ["r"], "format": lambda args, _: [0b11001011, 0b00111000 | args[0]] },
+        { "type": ["(HL)"], "format": lambda args, _: [0b11001011, 0b00111110] },
     ]},
     # TODO:
     #   set :(0xcb ?)
     #   res :(0xcb ?)
 
     { "opcode": ".DB", "params": [
-     { "type": ["*"], "format": lambda args: args },
+     { "type": ["*"], "format": lambda args, _: args },
+    ]},
+    { "opcode": ".PADTO", "params": [
+     { "type": ["16b"], "format": lambda args, addr: padTo(args,addr) },
     ]},
 ]
 
@@ -251,6 +265,11 @@ class Param:
             return ['n'], int(input)
         elif input in ["(HL)", "(BC)", "(DE)", "(C)", "(HL-)", "(HL+)"]:
             return [input], 0
+        elif input.startswith('='):
+            if labels is None:
+                return ['16b'], 0
+            else:
+                return ['16b'], labels[input[1:]]
         else:
             raise ValueError("Invalid parameter ({})".format(input))
 
@@ -275,12 +294,9 @@ class Instruction:
                             return params
                 return None
 
-    def __str__(self):
-        return "".join(["{:02x}".format(b) for b in self.to_bytes()])
-
-    def to_bytes(self):
+    def to_bytes(self, address):
         instruction_format = self.get_instruction_format()['format']
-        return instruction_format([param.value for param in self.params])
+        return instruction_format([param.value for param in self.params], address)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -299,12 +315,18 @@ def main():
 
         if ':' in line_without_comment:
             splitted = line_without_comment.split(':')
-            labels[splitted[0].strip()] = starting_address
+            labels[splitted[0].strip().upper()] = starting_address
             line_without_comment = splitted[1].strip()
 
         if line_without_comment != '':
-            lines.append(line_without_comment.replace("$", "0x").replace(",", " ").replace("0xFF00+", ""))
-            starting_address += 2
+            res = line_without_comment.replace("$", "0x").replace(",", " ").replace("0xFF00+", "")
+            lines.append(res)
+            instruction = Instruction(res, None)
+            print("Line: " + line)
+            print("Instruction: " + instruction.opcode + " " + str(instruction.params))
+            print("Valid: " + str(instruction.get_instruction_format()))
+            print("Format: " + str(instruction))
+            starting_address += len(instruction.to_bytes(starting_address))
 
     print(labels)
     program = []
@@ -315,7 +337,7 @@ def main():
         print("Valid: " + str(instruction.get_instruction_format()))
         print("Format: " + str(instruction))
 
-        program += instruction.to_bytes()
+        program += instruction.to_bytes(len(program))
 
     output = open(args.output_file, "wb")
     output.write(bytearray(program))

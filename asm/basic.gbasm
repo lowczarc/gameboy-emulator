@@ -1,132 +1,118 @@
-; Some padding since VBlank starts at 0x40:
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.PADTO 0x0040
+VBlank:
+	PUSH BC
+	LD B, A
+	LD C, $00
+	
+	LD A, ($81) ; The 2 lower digit go into ff80
+	INC A
+	DAA         ; We keep the result in decimal
+	LD ($81), A
+	
+	LD A, ($80) ; The 2 higher digit go into ff81
+	ADC C       ; We increase it with the carry of the previous increase
+	DAA         ; We keep the result in decimal
+	LD ($80), A
+	
+	POP BC
+	RETI
+	
+.PADTO 0x0100
+ROM_Start:
+	JP =Empty_VRAM
 
-; VBlank: We count the frames (in decimal)
-PUSH BC
-LD B, A
-LD C, $00
-
-LD A, ($81) ; The 2 lower digit go into ff80
-INC A
-DAA         ; We keep the result in decimal
-LD ($81), A
-
-LD A, ($80) ; The 2 higher digit go into ff81
-ADC C       ; We increase it with the carry of the previous increase
-DAA         ; We keep the result in decimal
-LD ($80), A
-
-POP BC
-RETI
-
-; Some more padding, the program starts at 0x100
-.DB $00, $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-
-; We jump to Empty VRAM
-JP $014e
-.DB $00
-
-; The Nintendo logo must be stored in bytes 0x104-133
-.DB $CE,$ED,$66,$66,$CC,$0D,$00,$0B,$03,$73,$00,$83,$00,$0C,$00,$0D 
-.DB $00,$08,$11,$1F,$88,$89,$00,$0E,$DC,$CC,$6E,$E6,$DD,$DD,$D9,$99 
-.DB $BB,$BB,$67,$63,$6E,$0E,$EC,$CC,$DD,$DC,$99,$9F,$BB,$B9,$33,$3E 
-
-; The bytes 0x134-0x14d need to add up to 0xe7 (= 0xff - 0x19)
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$e7
-
-; Emptying VRAM (Clear Screen) ($014e)
-LD hl, $8000 ; We set the HL register to the start of VRAM
-
-XOR A
-LD (hl+), a  ; We set the memory pointed to by hl to 0 and increase hl
-LD a, $a0
-CP h         ; Until h has reached $a0 ($a0000 is the end of VRAM)
-JR NZ, $f9
-
-; Play a sound sweep period effect
-LD a, $77
-LD ($ff10), a ; 0x77 (0b01110111) sets the period sweep pace and slope to 7 and set the sweep to increase
-LD a, $f0
-LD ($ff12), a ; 0xf0 sets the volume to max and deactivate envelope sweep
-LD a, $00
-LD ($ff13), a
-LD a, $84
-LD ($ff14), a ; We set the period to start at 1024, deactivate sound length and start the sound
-
-JP $01bf
-
-; Number font:
-.DB $00, $38, $4c, $c6, $c6, $64, $38, $00 ; 0 ($016f)
-.DB $00, $18, $38, $18, $18, $18, $7e, $00 ; 1
-.DB $00, $7c, $c6, $0e, $7c, $e0, $fe, $00 ; 2
-.DB $00, $7e, $0c, $38, $06, $c6, $7c, $00 ; 3
-.DB $00, $1c, $3c, $6c, $cc, $fe, $0c, $00 ; 4
-.DB $00, $fc, $80, $fc, $06, $c6, $7c, $00 ; 5
-.DB $00, $7c, $c0, $fc, $c6, $c6, $7c, $00 ; 6
-.DB $00, $fe, $c6, $0c, $18, $30, $30, $00 ; 7
-.DB $00, $7c, $c6, $7c, $c6, $c6, $7c, $00 ; 8
-.DB $00, $7c, $c6, $c6, $7e, $06, $7c, $00 ; 9
-
-LD A, $01
-LD ($ff), A ; We activate the Vblank interrupt (though we don't start interrupt yet)
-
-; Load number font into the tilemap at tiles 0x10-0x19
-LD HL, $8100
-LD DE, $016f
-LD B, $50
-
-LD A, (DE)
-LD (HL+), A
-LD (HL+), A
-INC DE
-DEC B
-JR NZ, $f9
-
-EI ; We activate interrupts
-
-; We print the number stored in ff80 first
-LD A, ($ff80)
-LD C, A
-LD HL, $9800
-
-SWAP A ; We start by the highest nibble
-AND $0f
-OR $10
-LD (HL+), A
-
-LD A, C
-AND $0f ; Then the lowest
-OR $10
-LD (HL+), A
-
-; Then the number stored in ff81 first
-LD A, ($ff81)
-
-LD C, A
-SWAP A
-AND $0f
-OR $10
-LD (HL+), A
-
-LD A, C
-AND $0f
-OR $10
-LD (HL+), A
-
-HALT ; We can now halt the program until VBlank
-
-JR $d8 ; We loop to the start of the number printing routing
+.PADTO 0x0104
+Nintendo_Logo: ; The Nintendo logo must be stored in bytes 0x104-133
+	.DB $CE,$ED,$66,$66,$CC,$0D,$00,$0B,$03,$73,$00,$83,$00,$0C,$00,$0D 
+	.DB $00,$08,$11,$1F,$88,$89,$00,$0E,$DC,$CC,$6E,$E6,$DD,$DD,$D9,$99 
+	.DB $BB,$BB,$67,$63,$6E,$0E,$EC,$CC,$DD,$DC,$99,$9F,$BB,$B9,$33,$3E 
+	
+.PADTO 0x0134
+Checksum: ; The bytes 0x134-0x14d need to add up to 0xe7 (= 0xff - 0x19)
+	.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$e7
+	
+Empty_VRAM: ; (Clear screen)
+	LD hl, $8000 ; We set the HL register to the start of VRAM
+	
+	Empty_VRAM.loop:
+		XOR A
+		LD (hl+), a 						; We set the memory pointed to by hl to 0 and increase hl
+		LD a, $a0
+		CP h        						; Until h has reached $a0 ($a0000 is the end of VRAM)
+		JR NZ, =Empty_VRAM.loop
+		
+Play_Sound: ; Play a sound sweep period effect
+	LD a, $77
+	LD ($ff10), a ; 0x77 (0b01110111) sets the period sweep pace and slope to 7 and set the sweep to increase
+	LD a, $f0
+	LD ($ff12), a ; 0xf0 sets the volume to max and deactivate envelope sweep
+	LD a, $00
+	LD ($ff13), a
+	LD a, $84
+	LD ($ff14), a ; We set the period to start at 1024, deactivate sound length and start the sound
+	
+JP =Load_Number_Font
+	
+Number_Font_Data:
+	.DB $00, $38, $4c, $c6, $c6, $64, $38, $00 ; 0
+	.DB $00, $18, $38, $18, $18, $18, $7e, $00 ; 1
+	.DB $00, $7c, $c6, $0e, $7c, $e0, $fe, $00 ; 2
+	.DB $00, $7e, $0c, $38, $06, $c6, $7c, $00 ; 3
+	.DB $00, $1c, $3c, $6c, $cc, $fe, $0c, $00 ; 4
+	.DB $00, $fc, $80, $fc, $06, $c6, $7c, $00 ; 5
+	.DB $00, $7c, $c0, $fc, $c6, $c6, $7c, $00 ; 6
+	.DB $00, $fe, $c6, $0c, $18, $30, $30, $00 ; 7
+	.DB $00, $7c, $c6, $7c, $c6, $c6, $7c, $00 ; 8
+	.DB $00, $7c, $c6, $c6, $7e, $06, $7c, $00 ; 9
+	
+	
+Load_Number_Font: ; Load number font into the tilemap at tiles 0x10-0x19
+	LD HL, $8100
+	LD DE, =Number_Font_Data
+	LD B, $50
+	
+	Load_Number_Font.loop:
+		LD A, (DE)
+		LD (HL+), A
+		LD (HL+), A
+		INC DE
+		DEC B
+		JR NZ, =Load_Number_Font.loop
+	
+Activate_VBlank_Interrupt:
+	LD A, $01
+	LD ($ff), A ; We activate the Vblank interrupt (though we don't start interrupt yet)
+	EI
+	
+Number_print:
+	LD A, ($ff80)    ; We print the number stored in ff80 first
+	LD C, A
+	LD HL, $9800
+	
+	SWAP A 				   ; We start by the highest nibble
+	AND $0f
+	OR $10
+	LD (HL+), A
+	
+	LD A, C
+	AND $0f 			   ; Then the lowest
+	OR $10
+	LD (HL+), A
+	
+	LD A, ($ff81)    ; Then the number stored in ff81
+	
+	LD C, A
+	SWAP A
+	AND $0f
+	OR $10
+	LD (HL+), A
+	
+	LD A, C
+	AND $0f
+	OR $10
+	LD (HL+), A
+	
+	HALT 					   ; We can now halt the program until VBlank
+	
+	JR =Number_print ; We loop to the start of the number printing routing
