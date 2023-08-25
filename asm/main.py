@@ -230,7 +230,8 @@ registers = {
     "BC": 0,
     "DE": 1,
     "HL": 2, # Confirmed
-    "SP": 3, # Confirmed
+    "AF": 3, # TODO: Only for PUSH & POP
+    "SP": 3, # TODO: For everything except PUSH & POP
 }
 
 conditions = {
@@ -249,7 +250,7 @@ class Param:
     def get_type_value(self, input, labels):
         if input in ['A', 'B', 'C', 'D', 'E', 'H', 'L']:
             return ['r', input], registers[input]
-        elif input in ['BC', 'DE', 'HL', 'SP']:
+        elif input in ['BC', 'DE', 'HL', 'SP', 'AF']:
             return ['rr', input], registers[input]
         elif len(input) == 4 and input[:2] == '0X':
             return ['8b'], int(input[2:], 16)

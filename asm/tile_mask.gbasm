@@ -1,0 +1,293 @@
+.PADTO 0x0040
+VBlank:
+	JP =VBlank_Routine
+
+.PADTO 0x0060
+Joypad:
+	JP =Joypad_Routine
+
+.PADTO 0x0100
+Start:
+	JP =Empty_VRAM
+
+.PADTO 0x0104
+Nintendo_Logo: ; The Nintendo logo must be stored in bytes 0x104-133
+	.DB $CE,$ED,$66,$66,$CC,$0D,$00,$0B,$03,$73,$00,$83,$00,$0C,$00,$0D 
+	.DB $00,$08,$11,$1F,$88,$89,$00,$0E,$DC,$CC,$6E,$E6,$DD,$DD,$D9,$99 
+	.DB $BB,$BB,$67,$63,$6E,$0E,$EC,$CC,$DD,$DC,$99,$9F,$BB,$B9,$33,$3E 
+	
+.PADTO 0x0134
+Checksum: ; The bytes 0x134-0x14d need to add up to 0xe7 (= 0xff - 0x19)
+	.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$e7
+
+Empty_VRAM: ; (Clear screen)
+	LD hl, $8000 ; We set the HL register to the start of VRAM
+	
+	Empty_VRAM.loop:
+		XOR A
+		LD (HL+), a 						; We set the memory pointed to by HL to 0 and increase HL
+		LD a, $a0
+		CP h        						; Until h has reached $a0 ($a0000 is the end of VRAM)
+		JR NZ, =Empty_VRAM.loop
+		
+Init_Palette:
+	LD A, $e4
+	LD ($47), A
+	
+JP =Load_Tile0
+	
+Tile0:
+	.DB $f0, $00, $f0, $66, $f0, $66, $f0, $00, $00, $0f, $66, $0f, $66, $0f, $00, $0f
+	
+Tile_Image_Data:
+	.DB $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00
+	.DB $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $fc, $03, $03
+	.DB $ff, $00, $00, $ff, $00, $00, $fc, $03, $03, $f0, $0f, $0c, $c0, $3f, $30, $80, $7f, $40, $00, $ff, $80, $00, $ff, $00
+	.DB $f8, $07, $07, $00, $ff, $f8, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00
+	.DB $7f, $80, $80, $01, $fe, $7e, $00, $ff, $01, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00
+	.DB $ff, $00, $00, $ff, $00, $00, $7f, $80, $80, $1f, $e0, $60, $07, $f8, $18, $01, $fe, $06, $00, $ff, $01, $00, $ff, $00
+	.DB $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $7f, $80, $80
+	.DB $f8, $07, $04, $f8, $07, $04, $f0, $0f, $08, $e0, $1f, $10, $c0, $3f, $20, $c0, $3f, $20, $80, $7f, $40, $80, $7f, $40
+	.DB $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00
+	.DB $3f, $c0, $40, $3f, $c0, $40, $1f, $e0, $20, $0f, $f0, $10, $07, $f8, $08, $07, $f8, $08, $03, $fc, $04, $03, $fc, $04
+	.DB $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $fe, $01, $01, $fe, $01, $01
+	.DB $00, $ff, $80, $00, $e7, $80, $00, $ef, $80, $00, $ff, $80, $00, $ff, $80, $00, $ff, $8f, $00, $ff, $3f, $00, $ff, $3f
+	.DB $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $7f, $00, $c1, $ff, $00, $57, $eb, $00, $24, $fb
+	.DB $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $e0, $00, $1f, $fe, $00, $03, $ff, $00, $46, $bf
+	.DB $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ef, $f0, $00, $1f, $fc
+	.DB $01, $fe, $02, $00, $ff, $01, $00, $ff, $01, $00, $ff, $01, $00, $ff, $01, $00, $fe, $01, $00, $fe, $01, $00, $fc, $03
+	.DB $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $7f, $80, $80, $7f, $80, $80, $7f, $80, $80
+	.DB $fe, $01, $01, $fe, $01, $01, $fe, $01, $01, $fe, $01, $01, $fe, $01, $01, $fe, $01, $01, $fe, $01, $01, $fe, $01, $01
+	.DB $00, $ff, $7f, $00, $ff, $7f, $00, $7e, $ff, $00, $7f, $fe, $00, $7f, $fe, $00, $7d, $fe, $00, $7c, $ff, $00, $7c, $ff
+	.DB $00, $42, $fd, $00, $52, $ff, $00, $41, $fe, $00, $44, $ff, $00, $43, $ff, $00, $6e, $fd, $00, $6d, $fb, $00, $7b, $f7
+	.DB $00, $44, $ff, $00, $89, $7e, $00, $1a, $fd, $00, $3a, $ff, $00, $df, $e0, $00, $3f, $c0, $00, $fc, $c0, $00, $c0, $c0
+	.DB $00, $53, $be, $00, $b3, $7f, $00, $2c, $f3, $00, $9e, $e1, $00, $ff, $03, $00, $fc, $03, $00, $03, $03, $00, $03, $03
+	.DB $00, $ff, $00, $00, $ff, $80, $00, $6f, $f0, $00, $1f, $f8, $00, $d7, $ec, $00, $6b, $b6, $00, $b1, $df, $00, $d4, $eb
+	.DB $00, $fc, $03, $00, $f8, $07, $00, $f8, $07, $00, $f8, $07, $00, $f8, $07, $00, $f8, $07, $00, $f1, $0f, $00, $f1, $8f
+	.DB $7f, $80, $80, $7f, $80, $80, $7f, $80, $80, $7f, $80, $80, $7f, $80, $80, $7f, $80, $80, $ff, $00, $00, $ff, $00, $00
+	.DB $fe, $01, $01, $fe, $01, $01, $fe, $01, $01, $fe, $01, $01, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00
+	.DB $00, $78, $ff, $00, $7a, $fd, $00, $fa, $7d, $00, $78, $ff, $00, $ba, $fd, $00, $f8, $bf, $00, $b8, $ff, $80, $7c, $5f
+	.DB $00, $77, $e7, $00, $37, $e7, $00, $70, $e7, $00, $70, $e7, $00, $70, $e7, $00, $31, $e3, $00, $30, $e0, $00, $70, $e3
+	.DB $00, $e0, $e0, $00, $e0, $e0, $00, $00, $c0, $00, $00, $c0, $00, $00, $c0, $00, $80, $80, $00, $00, $01, $00, $80, $01
+	.DB $00, $07, $07, $00, $07, $07, $00, $03, $03, $00, $00, $03, $00, $00, $03, $00, $02, $03, $00, $00, $00, $00, $00, $00
+	.DB $00, $ec, $eb, $00, $e0, $ef, $00, $e2, $ef, $00, $28, $e7, $00, $08, $cf, $00, $49, $c6, $00, $0b, $0e, $00, $82, $6f
+	.DB $00, $f0, $8f, $00, $70, $cf, $00, $71, $cf, $00, $31, $ef, $00, $39, $e7, $00, $39, $e7, $01, $3a, $e6, $01, $b2, $ee
+	.DB $80, $5e, $7d, $c0, $0f, $3e, $c0, $3f, $2f, $e0, $17, $1f, $e0, $1f, $17, $f0, $0b, $0f, $f0, $0f, $0b, $f8, $07, $05
+	.DB $00, $72, $f5, $00, $b1, $f2, $00, $38, $f8, $00, $fe, $fe, $00, $ff, $ff, $00, $ff, $ff, $00, $fc, $ff, $00, $b8, $ff
+	.DB $00, $40, $80, $00, $80, $00, $00, $00, $00, $00, $00, $00, $00, $80, $c0, $00, $ff, $ff, $00, $3f, $ff, $00, $ff, $ff
+	.DB $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $07, $0f, $00, $ff, $ff, $00, $ff, $ff, $00, $f6, $ff
+	.DB $00, $26, $df, $00, $ce, $3f, $00, $1d, $3f, $00, $7d, $ff, $00, $fd, $ff, $00, $ff, $ff, $00, $79, $ff, $00, $33, $fe
+	.DB $03, $34, $ec, $03, $64, $dc, $07, $c8, $f8, $07, $c8, $f8, $0f, $90, $f0, $0f, $10, $f0, $1f, $20, $e0, $1f, $20, $e0
+	.DB $f8, $07, $04, $f8, $07, $04, $fc, $03, $02, $fc, $03, $02, $fe, $01, $01, $fe, $01, $01, $ff, $00, $00, $ff, $00, $00
+	.DB $00, $7e, $ff, $00, $b0, $7f, $00, $b3, $7c, $00, $f7, $18, $00, $fd, $0e, $00, $3e, $c3, $00, $9f, $e1, $80, $47, $78
+	.DB $00, $00, $ff, $00, $bc, $ff, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $7f, $80, $00, $02, $fd, $00, $7f, $ff
+	.DB $00, $0c, $ff, $00, $70, $ff, $00, $f8, $07, $00, $fe, $01, $00, $ff, $03, $00, $ef, $1e, $00, $ff, $f0, $00, $3e, $01
+	.DB $00, $26, $fd, $00, $1e, $f9, $00, $38, $f7, $00, $f0, $cf, $00, $e0, $9f, $00, $80, $7f, $00, $01, $ff, $00, $01, $ff
+	.DB $3f, $00, $c0, $3f, $40, $c0, $3f, $40, $c0, $7f, $80, $80, $7f, $80, $80, $7f, $80, $80, $ff, $00, $00, $ff, $00, $00
+	.DB $80, $66, $79, $80, $6f, $70, $80, $5e, $70, $00, $8f, $f8, $00, $87, $ff, $00, $c1, $bf, $00, $e0, $1f, $00, $d0, $2f
+	.DB $00, $ef, $10, $00, $ff, $00, $00, $7f, $00, $00, $fc, $03, $00, $00, $ff, $00, $ff, $ff, $00, $09, $ff, $00, $00, $ff
+	.DB $00, $f8, $07, $00, $e0, $1f, $00, $c1, $3f, $00, $1e, $ff, $00, $e0, $ff, $00, $00, $ff, $00, $40, $ff, $00, $00, $ff
+	.DB $01, $06, $fe, $01, $0a, $fe, $01, $f2, $fe, $01, $02, $fe, $00, $01, $ff, $00, $01, $ff, $00, $01, $ff, $00, $00, $ff
+
+Tile_Image_Map:
+	.DB $00, $01, $02, $03, $04, $05, $06, $00, $00, $07, $08, $08, $08, $08, $09, $00, $0a, $0b, $0c, $0d, $0e, $08, $0f, $10
+	.DB $11, $12, $13, $14, $15, $16, $17, $18, $19, $1a, $1b, $1c, $1d, $1e, $1f, $00, $00, $20, $21, $22, $23, $24, $25, $00
+	.DB $00, $26, $27, $28, $29, $2a, $2b, $00, $00, $0a, $2c, $2d, $2e, $2f, $00, $00
+	
+Load_Tile0:
+	LD HL, $8000
+	LD DE, =Tile0
+	LD B, $08
+	
+	Load_Tile0.loop:
+		LD A, (DE)
+		LD (HL+), A
+		INC DE
+		LD A, (DE)
+		LD (HL+), A
+		INC DE
+		DEC B
+		JR NZ, =Load_Tile0.loop
+
+Load_Tiles:
+	LD HL $8200
+	LD DE =Tile_Image_Data
+	LD BC, $8000
+
+	Load_Tiles.loop:
+		LD A, (DE)
+
+		INC DE
+
+		PUSH AF
+		CALL =Merge_BG_FG_Mask
+		POP AF
+		CALL =Merge_BG_FG_Mask
+
+		LD A, C
+		AND $0f
+		LD C, A
+
+		LD A, H
+		CP $85
+
+		JR NZ, =Load_Tiles.loop
+		JR =Print_Tiles
+
+	Merge_BG_FG_Mask:
+		; We cut the background with the mask
+		PUSH DE
+		LD D, A
+		LD A, (BC)
+		AND D
+		POP DE
+
+		; We add the main tile data to the result
+		PUSH BC
+		LD B, A
+		LD A, (DE)
+		OR B
+		POP BC
+
+		LD (HL+), A
+		INC DE
+		INC BC
+		RET
+
+Print_Tiles:
+	LD HL, $9800
+	LD DE, =Tile_Image_Map
+
+	LD C, $08
+	Print_Tile_Map.loop_y:
+		LD B, $08
+		Print_Tile_Map.loop_x:
+			LD A, (DE)
+			ADD $20
+			LD (HL+), A
+			INC DE
+			DEC B
+			JR NZ =Print_Tile_Map.loop_x
+		LD A, L
+		AND $e0
+		ADD $20
+		LD L, A
+		DEC C
+		JR NZ =Print_Tile_Map.loop_y
+
+Activate_VBlank_Joypad_Interrupt:
+	LD A, $11
+	LD ($ff), A
+	EI
+	
+Lock:
+	LD A, $10
+	LD ($00), A
+	HALT
+	JR =Lock
+
+VBlank_Routine:
+	PUSH AF
+	PUSH BC
+
+	; Limit execution to once every 2 frame
+	LD A, ($80)
+	INC A
+	AND $01
+	LD ($80), A
+	JR NZ =VBlank.end
+
+	; Load the current Viewport
+	LD A, ($42)
+	LD B, A
+	LD A, ($43)
+	LD C, A
+
+	; Allow direction change every 8 move
+	LD A, ($81)
+	INC A
+	AND $07
+	LD ($81), A
+	LD A, ($82)
+	JR NZ =Test_RPad
+
+	; Read direction buttons
+	LD A, $20
+	LD ($00), A
+	LD A, ($00)
+	AND $0f
+	XOR $0f
+	JR NZ, =Move
+
+	; If no button pressed, force the next check to allow direction change
+	LD A, $07
+	LD ($81), A
+	JR =VBlank.end
+
+	Move:
+		LD ($82), A
+
+		Test_RPad:
+			BIT 0, A
+			JR Z =Test_LPad
+
+			INC C
+			JR =Pad_Apply
+
+		Test_LPad:
+			BIT 1, A
+			JR Z =Test_UPad
+
+			DEC C
+			JR =Pad_Apply
+
+		Test_UPad:
+			BIT 2, A
+			JR Z =Test_DPad
+
+			DEC B
+			JR =Pad_Apply
+
+		Test_DPad:
+			BIT 3, A
+			JR Z =VBlank.end
+
+			INC B
+			JR =Pad_Apply
+
+		Pad_Apply:
+			LD A, B
+			LD ($42), A
+			LD A, C
+			LD ($43), A
+
+	VBlank.end:
+	LD A, $10
+	LD ($00), A
+
+	POP BC
+	POP AF
+	RETI
+
+Joypad_Routine:
+	PUSH AF
+	PUSH BC
+
+	LD A, $10
+	LD ($00), A
+	LD A, ($00)
+	LD B, A
+	BIT 0, B
+	LD A, $e4
+	JR NZ =Joypad.end
+
+	XOR $ff
+
+	Joypad.end:
+	LD ($47), A
+
+
+	POP BC
+	POP AF
+	RETI
