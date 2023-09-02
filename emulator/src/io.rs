@@ -2,6 +2,9 @@ use crate::state::{MemError, Memory};
 
 impl Memory {
     pub fn r_io(&self, addr: u8) -> u8 {
+        if addr > 0x50 {
+            println!("Reading from 0xff{:02x} not implemented yet", addr);
+        }
         match addr {
             0x00 => {
                 if self.joypad_is_action {
@@ -208,8 +211,38 @@ impl Memory {
             0x49 => self.display.obj_palettes[1] = value,
             0x4a => self.display.window_y = value,
             0x4b => self.display.window_x = value,
+            0x4f => self.display.vram_bank = value & 1,
             0x50 => self.boot_rom_on = value & 1 == 0 && self.boot_rom_on,
-            _ => {}
+            0x68 => {
+                self.bgcram_pointer = 0b111111 & value;
+                self.bgcram_pointer_autoincrement = value & 0b10000000 != 0;
+            }
+            0x69 => {
+                self.display.cram[self.bgcram_pointer as usize] = value;
+                if self.bgcram_pointer_autoincrement {
+                    self.bgcram_pointer += 1;
+                    self.bgcram_pointer &= 0b111111;
+                }
+            }
+            0x6a => {
+                self.obcram_pointer = 0b111111 & value;
+                self.obcram_pointer_autoincrement = value & 0b10000000 != 0;
+            }
+            0x6b => {
+                self.display.cram[self.obcram_pointer as usize + 0x40] = value;
+                if self.obcram_pointer_autoincrement {
+                    self.obcram_pointer += 1;
+                    self.obcram_pointer &= 0b111111;
+                }
+            }
+            _ => {
+                if addr >= 0x4d {
+                    println!(
+                        "Writing to 0xff{:02x} not implemented yet ({:02x})",
+                        addr, value
+                    );
+                }
+            }
         }
         self.io[addr as usize] = value;
 

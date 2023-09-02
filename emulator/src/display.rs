@@ -31,10 +31,12 @@ pub struct Display {
     framebuffer: [u32; 160 * 144],
     bg_buffer: [u8; 160 * 144],
 
-    tiledata: [u8; 0x1800],
+    tiledata: [u8; 0x3000],
+    bg_map_attr: [u8; 0x400],
     tilemaps: [u8; 0x800],
     oam: [u8; 0xa0],
 
+    pub cram: [u8; 0x80],
     pub bg_palette: u8,
     pub obj_palettes: [u8; 2],
     pub viewport_y: u8,
@@ -43,6 +45,9 @@ pub struct Display {
     pub ly: u8,
     pub lyc: u8,
     pub lcd_interrupt_mode: u8,
+    pub vram_bank: u8,
+
+    pub cgb_mode: bool,
 
     pub window_x: u8,
     pub window_y: u8,
@@ -64,10 +69,13 @@ impl Display {
             .unwrap(),
             framebuffer: [0; 160 * 144],
             bg_buffer: [0; 160 * 144],
-            tiledata: [0; 0x1800],
+            tiledata: [0; 0x3000],
+            bg_map_attr: [0; 0x400],
+            cram: [0; 0x80],
             tilemaps: [0; 0x800],
             oam: [0; 0xa0],
             bg_palette: 0,
+            vram_bank: 0,
             obj_palettes: [0; 2],
             viewport_y: 0,
             viewport_x: 0,
@@ -78,6 +86,7 @@ impl Display {
             last_dt: SystemTime::now(),
             stat: 0,
             lyc: 0,
+            cgb_mode: false,
             lcd_interrupt_mode: 0xff,
         }
     }
@@ -92,16 +101,29 @@ impl Display {
             .unwrap();
     }
 
-    pub fn color_palette(&self, color_byte: u8, palette: u8) -> u32 {
-        COLORS[((palette >> (color_byte << 1)) & 0b11) as usize]
+    pub fn color_palette(&self, color_byte: u8, palette: u8, cgb_mode: bool) -> u32 {
+        if cgb_mode {
+            let color_pointer = palette * 8 + color_byte * 2;
+            let color16b: u16 = (self.cram[color_pointer as usize] as u16)
+                | ((self.cram[color_pointer as usize + 1] as u16) << 8);
+
+            let red = ((0b11111 & color16b) << 3) as u32;
+            let green = (((color16b >> 5) & 0b11111) << 3) as u32;
+            let blue = (((color16b >> 10) & 0b11111) << 3) as u32;
+
+            (red << 16) | (green << 8) | blue
+        } else {
+            COLORS[((palette >> (color_byte << 1)) & 0b11) as usize]
+        }
     }
 
-    pub fn print_tile(&mut self, tile: u8, x: u8, y: u8, l: usize) {
+    pub fn print_tile(&mut self, tile: u8, x: u8, y: u8, l: usize, bg_map_attr: u8) {
         let tile_pointer = if self.lcdc & lcdc_flags::BG_TILEDATA_AREA != 0 {
             ((tile as u16) << 4) as usize
         } else {
             ((tile as i8 as i32) * 16) as usize + 0x1000
-        };
+        } + if bg_map_attr & 0b1000 != 0 { 0x1800 } else { 0 };
+
         for b in (0..8).rev() {
             let data = (((self.tiledata[tile_pointer + l * 2] as u8) >> b) & 1)
                 | ((((self.tiledata[tile_pointer + l * 2 + 1] as u8) >> b) & 1) << 1);
@@ -110,8 +132,15 @@ impl Display {
             let pxy = y as i32;
 
             if pxy < 144 && pxx < 160 {
-                self.framebuffer[pxy as usize * 160 + pxx as usize] =
-                    self.color_palette(data, self.bg_palette);
+                self.framebuffer[pxy as usize * 160 + pxx as usize] = self.color_palette(
+                    data,
+                    if self.cgb_mode {
+                        bg_map_attr & 0b111
+                    } else {
+                        self.bg_palette
+                    },
+                    self.cgb_mode,
+                );
                 self.bg_buffer[pxy as usize * 160 + pxx as usize] = data;
             }
         }
@@ -119,29 +148,47 @@ impl Display {
     pub fn print_all_tiles(&mut self) {
         for i in 0..=255 {
             for l in 0..8 {
-                self.print_tile(i, (i % 20) * 8, (i / 20) * 8, l);
+                self.print_tile(i, (i % 20) * 8, (i / 20) * 8, l, 0);
             }
         }
     }
 
     pub fn w(&mut self, addr: u16, value: u8) -> Result<(), MemError> {
-        if addr < 0x1800 {
-            self.tiledata[addr as usize] = value;
-        } else if addr >= 0x7e00 {
-            self.oam[addr as usize - 0x7e00] = value;
+        if self.vram_bank == 0 {
+            if addr < 0x1800 {
+                self.tiledata[addr as usize] = value;
+            } else if addr >= 0x7e00 {
+                self.oam[addr as usize - 0x7e00] = value;
+            } else {
+                self.tilemaps[addr as usize - 0x1800] = value;
+            }
         } else {
-            self.tilemaps[addr as usize - 0x1800] = value;
+            if addr < 0x1800 {
+                self.tiledata[addr as usize + 0x1800] = value;
+            } else if addr < 0x1c00 {
+                self.bg_map_attr[addr as usize - 0x1800] = value;
+            }
         }
         Ok(())
     }
 
     pub fn r(&self, addr: u16) -> Result<u8, MemError> {
-        if addr < 0x1800 {
-            Ok(self.tiledata[addr as usize])
-        } else if addr >= 0x7e00 {
-            Ok(self.oam[addr as usize - 0x7e00])
+        if self.vram_bank == 0 {
+            if addr < 0x1800 {
+                Ok(self.tiledata[addr as usize])
+            } else if addr >= 0x7e00 {
+                Ok(self.oam[addr as usize - 0x7e00])
+            } else {
+                Ok(self.tilemaps[addr as usize - 0x1800])
+            }
         } else {
-            Ok(self.tilemaps[addr as usize - 0x1800])
+            if addr < 0x1800 {
+                Ok(self.tiledata[addr as usize + 0x1800])
+            } else if addr < 0x1c00 {
+                Ok(self.bg_map_attr[addr as usize - 0x1800])
+            } else {
+                Ok(0)
+            }
         }
     }
 
@@ -156,11 +203,13 @@ impl Display {
 
         for x in 0..32 {
             let tile = self.tilemaps[tilemap_pointer + (y_tile / 8) * 32 + x];
+            let bg_map_attr = self.bg_map_attr[(y_tile / 8) * 32 + x];
             self.print_tile(
                 tile,
                 x as u8 * 8 - self.viewport_x,
                 self.ly,
                 (y_tile % 8) as usize,
+                bg_map_attr,
             );
         }
     }
@@ -189,6 +238,7 @@ impl Display {
                     x as u8 * 8 + self.window_x - 7,
                     self.ly,
                     (y_tile % 8) as usize,
+                    0,
                 );
             }
         }
@@ -208,9 +258,19 @@ impl Display {
             let x_flip = opts & 0b100000 != 0;
             let y_flip = opts & 0b1000000 != 0;
             let palette = (opts >> 4) & 1;
-            let tile_pointer = ((tile as u16) << 4) as usize;
+            let tile_vram = if self.cgb_mode && opts & 0b1000 != 0 {
+                0x1800
+            } else {
+                0
+            };
+            let cgb_palette = opts & 0b111;
+            let tile_pointer = ((tile as u16) << 4) as usize + tile_vram;
 
-            let obj_size = if self.lcdc & lcdc_flags::OBJ_SIZE != 0 { 16 } else { 8 };
+            let obj_size = if self.lcdc & lcdc_flags::OBJ_SIZE != 0 {
+                16
+            } else {
+                8
+            };
 
             if y < self.ly || y >= self.ly + obj_size {
                 continue;
@@ -238,8 +298,15 @@ impl Display {
                         && !((bg_priority_flag/* && self.lcdc & lcdc_flags::BG_PRIORITY != 0 */)
                             && self.bg_buffer[pxy as usize * 160 + pxx as usize] != 0)
                     {
-                        self.framebuffer[pxy as usize * 160 + pxx as usize] =
-                            self.color_palette(data, self.obj_palettes[palette as usize]);
+                        self.framebuffer[pxy as usize * 160 + pxx as usize] = self.color_palette(
+                            data,
+                            if self.cgb_mode {
+                                cgb_palette + 8
+                            } else {
+                                self.obj_palettes[palette as usize]
+                            },
+                            self.cgb_mode,
+                        );
                     }
                 }
             }

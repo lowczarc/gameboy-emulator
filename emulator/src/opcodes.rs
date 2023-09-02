@@ -601,7 +601,7 @@ pub fn op00(state: &mut GBState, n1: u8, n2: u8) -> Result<u64, MemError> {
         0b000 => match n1 {
             0b000 => Ok(4),
             0b001 => ldnnsp(state),
-            0b010 => todo!("STOP"), // STOP
+            0b010 => todo!("STOP"),
             0b011 => jr8(state),
             _ => jrcc8(state, n1),
         },

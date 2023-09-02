@@ -85,7 +85,18 @@ impl CPU {
 }
 
 pub struct Memory {
-    boot_rom: [u8; 0x100],
+    boot_rom: [u8; 0x900],
+
+    pub cgb_mode: bool,
+
+    pub bgcram_pointer: u8,
+
+    pub bgcram_pointer_autoincrement: bool,
+
+    pub obcram_pointer: u8,
+
+    pub obcram_pointer_autoincrement: bool,
+
     pub boot_rom_on: bool,
 
     pub rom_bank: u8,
@@ -151,8 +162,13 @@ impl Memory {
         display.cls();
 
         Self {
-            boot_rom: [0; 0x100],
+            boot_rom: [0; 0x900],
             boot_rom_on: true,
+            cgb_mode: false,
+            bgcram_pointer: 0,
+            bgcram_pointer_autoincrement: false,
+            obcram_pointer: 0,
+            obcram_pointer_autoincrement: false,
             rom_bank: 1,
             ram_bank: 0,
             ram_bank_enabled: false,
@@ -177,10 +193,16 @@ impl Memory {
         }
     }
 
-    pub fn load_boot_rom(&mut self) {
-        let bytes = include_bytes!("../assets/boot.bin");
+    pub fn load_dmg_boot_rom(&mut self) {
+        let bytes = include_bytes!("../assets/dmg_boot.bin");
 
-        self.boot_rom.copy_from_slice(&bytes[..0x100]);
+        self.boot_rom[..0x100].copy_from_slice(bytes);
+    }
+
+    pub fn load_cgb_boot_rom(&mut self) {
+        let bytes = include_bytes!("../assets/cgb_boot.bin");
+
+        self.boot_rom[..0x900].copy_from_slice(bytes);
     }
 
     pub fn load_rom(&mut self, file: &str) -> Result<(), std::io::Error> {
@@ -189,6 +211,15 @@ impl Memory {
         f.read(&mut self.rom)?;
 
         println!("MBC: {:02x}", self.rom[0x147]);
+        println!("CGB: {:02x}", self.rom[0x143]);
+
+        if self.rom[0x143] == 0x80 || self.rom[0x143] == 0xc0 {
+            self.load_cgb_boot_rom();
+            self.cgb_mode = true;
+            self.display.cgb_mode = true;
+        } else {
+            self.load_dmg_boot_rom();
+        }
 
         Ok(())
     }
@@ -214,7 +245,7 @@ impl Memory {
     }
 
     pub fn r(&self, addr: u16) -> Result<u8, MemError> {
-        if addr < 0x100 && self.boot_rom_on {
+        if (addr < 0x100 || (addr >= 0x200 && addr < 0x900)) && self.boot_rom_on {
             Ok(self.boot_rom[addr as usize])
         } else if addr < 0x4000 {
             Ok(self.rom[addr as usize])
@@ -301,9 +332,7 @@ pub struct GBState {
 
 impl GBState {
     pub fn new() -> Self {
-        let mut mem = Memory::new();
-
-        mem.load_boot_rom();
+        let mem = Memory::new();
 
         Self {
             cpu: CPU::new(),

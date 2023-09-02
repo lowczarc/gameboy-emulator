@@ -9,9 +9,9 @@ pub mod state;
 
 use crate::gamepad::Gamepad;
 use crate::state::{GBState, MemError};
-use std::time::{SystemTime};
-use std::{time, thread};
-use clap::{Parser};
+use clap::Parser;
+use std::time::SystemTime;
+use std::{thread, time};
 
 pub fn exec_opcode(state: &mut GBState) -> Result<u64, MemError> {
     let opcode = state.mem.r(state.cpu.pc)?;
@@ -91,16 +91,6 @@ fn main() {
         state.check_interrupts().unwrap();
 
         nanos_sleep += c as i128 * (consts::CPU_CYCLE_LENGTH_NANOS as f32 / cli.speed) as i128;
-
-        if last_ram_bank_enabled && !state.mem.ram_bank_enabled {
-            println!("Saving to \"{}\"...", save_file);
-
-            if let Err(_) = state.mem.save_external_ram(&save_file) {
-                println!("Failed to save external RAM");
-            }
-        }
-        last_ram_bank_enabled = state.mem.ram_bank_enabled;
-
         if nanos_sleep > 0 {
             gamepad.update_events();
 
@@ -108,24 +98,37 @@ fn main() {
             let direction_button_reg = gamepad.get_direction_gamepad_reg();
             gamepad.check_special_actions(&mut state);
 
-            if
-                (state.mem.joypad_is_action && ((action_button_reg) ^ (state.mem.joypad_reg)) & state.mem.joypad_reg & 0b1111 != 0)
-                || (!state.mem.joypad_is_action && ((direction_button_reg) ^ (state.mem.joypad_reg >> 4)) & (state.mem.joypad_reg >> 4) & 0b1111 != 0) {
-                state.mem.io[0x0f] |= 0b10000;
+            if state.mem.joypad_is_action
+                && (action_button_reg & state.mem.joypad_reg & 0b1111)
+                    != (state.mem.joypad_reg & 0b1111)
+                || (!state.mem.joypad_is_action
+                    && (direction_button_reg & (state.mem.joypad_reg >> 4))
+                        != (state.mem.joypad_reg >> 4))
+            {
+                // state.mem.io[0x0f] |= 0b10000;
             }
 
             state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
 
-
-
             if cli.thread_sleep {
                 thread::sleep(time::Duration::from_nanos(nanos_sleep as u64 / 10));
             } else {
-                while SystemTime::now().duration_since(now).unwrap().as_nanos() < nanos_sleep as u128 {}
+                while SystemTime::now().duration_since(now).unwrap().as_nanos()
+                    < nanos_sleep as u128
+                {}
             }
 
             nanos_sleep =
                 nanos_sleep - SystemTime::now().duration_since(now).unwrap().as_nanos() as i128;
+
+            if last_ram_bank_enabled && !state.mem.ram_bank_enabled {
+                println!("Saving to \"{}\"...", save_file);
+
+                if let Err(_) = state.mem.save_external_ram(&save_file) {
+                    println!("Failed to save external RAM");
+                }
+            }
+            last_ram_bank_enabled = state.mem.ram_bank_enabled;
         }
     }
 }
