@@ -10,7 +10,7 @@ const LINE_DOTS: u64 = 456;
 mod lcdc_flags {
     pub const _BG_PRIORITY: u8 = 0b1;
     pub const OBJ_ENABLE: u8 = 0b10;
-    pub const _OBJ_SIZE: u8 = 0b100;
+    pub const OBJ_SIZE: u8 = 0b100;
     pub const BG_TILEMAP_AREA: u8 = 0b1000;
     pub const BG_TILEDATA_AREA: u8 = 0b10000;
     pub const WIN_ENABLE: u8 = 0b100000;
@@ -210,14 +210,16 @@ impl Display {
             let palette = (opts >> 4) & 1;
             let tile_pointer = ((tile as u16) << 4) as usize;
 
-            if y < self.ly || y >= self.ly + 8 {
+            let obj_size = if self.lcdc & lcdc_flags::OBJ_SIZE != 0 { 16 } else { 8 };
+
+            if y < self.ly || y >= self.ly + obj_size {
                 continue;
             }
 
             let l = if y_flip {
                 y - self.ly
             } else {
-                7 - (y - self.ly)
+                obj_size - 1 - (y - self.ly)
             };
 
             for b in 0..8 {
