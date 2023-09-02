@@ -99,13 +99,13 @@ fn main() {
             gamepad.check_special_actions(&mut state);
 
             if state.mem.joypad_is_action
-                && (action_button_reg & state.mem.joypad_reg & 0b1111)
-                    != (state.mem.joypad_reg & 0b1111)
+                && (action_button_reg & (state.mem.joypad_reg >> 4))
+                    != (state.mem.joypad_reg >> 4)
                 || (!state.mem.joypad_is_action
-                    && (direction_button_reg & (state.mem.joypad_reg >> 4))
-                        != (state.mem.joypad_reg >> 4))
+                    && (direction_button_reg & state.mem.joypad_reg & 0b1111)
+                        != (state.mem.joypad_reg & 0b1111))
             {
-                // state.mem.io[0x0f] |= 0b10000;
+                state.mem.io[0x0f] |= 0b10000;
             }
 
             state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
