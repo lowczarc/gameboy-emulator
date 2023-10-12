@@ -43,7 +43,7 @@ python main.py <gbasm_input> <rom_output>
 
 ## 📝 License
 
-This project is licensed under the "I love you Nintendo please don't sue me" license
+This project is licensed under the "Do as you please, maybe just ask me if you want to use it for commercial purposes ?" license
 
 ## 📚 References
 
