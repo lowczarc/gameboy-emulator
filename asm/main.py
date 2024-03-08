@@ -118,7 +118,9 @@ instructions = [
         { "type": ["8b"], "format": lambda args, _: [0b00011000, args[0]] },
         { "type": ["16b"], "format": lambda args, addr: [0b00011000, (args[0] - addr - 2) & 0xff] },
         { "type": ["cc", "8b"], "format": lambda args, _: [0b00100000 | (args[0] << 3), args[1]] },
-        { "type": ["cc", "16b"], "format": lambda args, addr: [0b00100000 | (args[0] << 3), (args[1] - addr - 2) & 0xff] }
+        { "type": ["C", "8b"], "format": lambda args, _: [0b00100000 | (3 << 3), args[1]] },
+        { "type": ["cc", "16b"], "format": lambda args, addr: [0b00100000 | (args[0] << 3), (args[1] - addr - 2) & 0xff] },
+        { "type": ["C", "16b"], "format": lambda args, addr: [0b00100000 | (3 << 3), (args[1] - addr - 2) & 0xff] }
     ]},
     { "opcode": "CALL", "params": [
         { "type": ["16b"], "format": lambda args, _: [0b11001101, args[0] & 0xff, args[0] >> 8] },

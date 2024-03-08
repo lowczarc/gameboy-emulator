@@ -1,5 +1,5 @@
 use crate::state::GBState;
-use gilrs::{Button, GamepadId, Gilrs};
+use gilrs::{Button, GamepadId, Gilrs, Event};
 
 pub struct Gamepad {
     gilrs: Gilrs,
@@ -8,7 +8,7 @@ pub struct Gamepad {
 
 impl Gamepad {
     pub fn new() -> Self {
-        let gilrs = Gilrs::new().unwrap();
+        let mut gilrs = Gilrs::new().unwrap();
 
         let gamepad_id = if let Some((gamepad_id, _gamepad)) = gilrs.gamepads().next() {
             println!("Found Gamepad id: {:?}", gamepad_id);
@@ -17,6 +17,7 @@ impl Gamepad {
             println!("No gamepad found");
             None
         };
+
 
         Self { gilrs, gamepad_id }
     }
@@ -34,6 +35,7 @@ impl Gamepad {
     }
 
     pub fn get_action_gamepad_reg(&self) -> u8 {
+
         let mut res = 0xf;
 
         if let Some(gamepad_id) = self.gamepad_id {
